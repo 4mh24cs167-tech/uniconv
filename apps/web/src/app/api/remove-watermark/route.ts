@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       outputBuffer = Buffer.from(buffer);
     }
 
-    return new NextResponse(outputBuffer, {
+    return new NextResponse(outputBuffer as unknown as BodyInit, {
       headers: {
         "Content-Type": file.type,
         "Content-Disposition": `attachment; filename="cleaned_${file.name}"`,

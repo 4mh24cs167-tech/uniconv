@@ -21,7 +21,12 @@ export function FormatPicker({ formats, selectedFormat, onSelect }: FormatPicker
   return (
     <div className="space-y-2">
       <Label htmlFor="format-picker">Convert to</Label>
-      <Select value={selectedFormat} onValueChange={onSelect}>
+      <Select 
+        value={selectedFormat} 
+        onValueChange={(value) => {
+          if (value) onSelect(value);
+        }}
+      >
         <SelectTrigger id="format-picker" className="w-full sm:w-[200px]">
           <SelectValue placeholder="Select format" />
         </SelectTrigger>

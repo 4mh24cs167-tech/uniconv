@@ -83,7 +83,7 @@ startxref
       }
     }
 
-    return new NextResponse(outputBuffer, {
+    return new NextResponse(outputBuffer as unknown as BodyInit, {
       headers: {
         "Content-Type": contentType,
         "Content-Disposition": `attachment; filename="converted.${format}"`,
