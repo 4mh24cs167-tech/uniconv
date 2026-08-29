@@ -1,0 +1,77 @@
+"use client";
+
+import { Auth } from '@supabase/auth-ui-react';
+import { ThemeSupa } from '@supabase/auth-ui-shared';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { FileText } from 'lucide-react';
+import { clsx } from 'clsx';
+
+export default function LoginPage() {
+  const router = useRouter();
+  const supabase = createClientComponentClient();
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        router.push('/'); // Or dashboard
+      }
+    };
+    checkUser();
+    
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === 'SIGNED_IN') {
+          router.push('/');
+        }
+      }
+    );
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [router, supabase]);
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="bg-white p-8 rounded-2xl shadow-xl shadow-slate-200/50 w-full max-w-md border border-slate-100">
+        <div className="flex items-center justify-center mb-8 gap-3">
+          <div className="p-3 bg-red-100 text-red-600 rounded-xl">
+            <FileText className="w-8 h-8" />
+          </div>
+          <span className="text-3xl font-extrabold tracking-tight text-slate-800">
+            uniconv
+          </span>
+        </div>
+        
+        <h2 className="text-2xl font-bold text-center text-slate-900 mb-6">
+          Welcome back
+        </h2>
+        
+        <Auth
+          supabaseClient={supabase}
+          appearance={{ 
+            theme: ThemeSupa,
+            variables: {
+              default: {
+                colors: {
+                  brand: '#e5322d',
+                  brandAccent: '#d42d28',
+                }
+              }
+            },
+            className: {
+              button: 'w-full px-4 py-3 rounded-lg font-semibold',
+              input: 'w-full px-4 py-3 rounded-lg border border-slate-300',
+              label: 'text-sm font-medium text-slate-700',
+            }
+          }}
+          providers={['google']}
+          redirectTo={`${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`}
+        />
+      </div>
+    </div>
+  );
+}
