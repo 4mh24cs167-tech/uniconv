@@ -84,15 +84,90 @@ async def process_document_job(job_id: str):
     5. Updates job status to COMPLETED
     """
     import asyncio
+    import os
+    import tempfile
+    from services.pdf_service import PDFService
+    
     print(f"Starting processing for job {job_id}")
     
     # Update status to PROCESSING
     supabase.table("processing_jobs").update({"status": "PROCESSING"}).eq("id", job_id).execute()
     
-    # SIMULATE HEAVY PROCESSING
-    await asyncio.sleep(3)
-    
-    # Update status to COMPLETED
-    supabase.table("processing_jobs").update({"status": "COMPLETED", "progress": 100}).eq("id", job_id).execute()
-    print(f"Completed processing for job {job_id}")
+    try:
+        # 1. Fetch job details
+        job_res = supabase.table("processing_jobs").select("*").eq("id", job_id).execute()
+        if not job_res.data:
+            raise Exception("Job not found")
+        job = job_res.data[0]
+        
+        file_id = job["input_file_ids"][0]
+        
+        # Fetch file details
+        file_res = supabase.table("files").select("*").eq("id", file_id).execute()
+        if not file_res.data:
+            raise Exception("Input file not found in DB")
+        file_metadata = file_res.data[0]
+        storage_key = file_metadata["storage_key"]
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_path = os.path.join(temp_dir, file_metadata["filename"])
+            output_path = os.path.join(temp_dir, f"processed_{file_metadata['filename']}")
+            
+            # 2. Download from Supabase Storage
+            res = supabase.storage.from_("uploads").download(storage_key)
+            with open(input_path, "wb") as f:
+                f.write(res)
+                
+            print(f"Downloaded {file_metadata['filename']} successfully")
+            
+            # 3. Process based on tool
+            tool = job["tool"]
+            success = False
+            
+            if tool == "COMPRESS_PDF":
+                target_size = job.get("configuration", {}).get("target_size_mb")
+                success = PDFService.compress_pdf(input_path, output_path, target_size)
+            elif tool == "MERGE_PDF":
+                success = PDFService.merge_pdfs([input_path], output_path) # Needs multiple files logic later
+            else:
+                # Mock generic success for other tools for now
+                import shutil
+                shutil.copy(input_path, output_path)
+                success = True
+                
+            if not success:
+                raise Exception(f"Processing failed for tool: {tool}")
+                
+            # 4. Upload result to Storage
+            result_key = f"{job['user_id']}/results/{job_id}_{file_metadata['filename']}"
+            with open(output_path, "rb") as f:
+                supabase.storage.from_("results").upload(result_key, f)
+                
+            # Create result file DB entry
+            result_file_data = {
+                "user_id": job["user_id"],
+                "filename": f"processed_{file_metadata['filename']}",
+                "original_filename": file_metadata['original_filename'],
+                "size_bytes": os.path.getsize(output_path),
+                "storage_key": result_key,
+                "status": "active"
+            }
+            res_file = supabase.table("files").insert(result_file_data).execute()
+            result_file_id = res_file.data[0]["id"]
+            
+            # 5. Update job status to COMPLETED
+            supabase.table("processing_jobs").update({
+                "status": "COMPLETED", 
+                "progress": 100,
+                "result_file_id": result_file_id
+            }).eq("id", job_id).execute()
+            
+            print(f"Completed processing for job {job_id}")
+            
+    except Exception as e:
+        print(f"Job {job_id} failed: {e}")
+        supabase.table("processing_jobs").update({
+            "status": "FAILED",
+            "error_message": str(e)
+        }).eq("id", job_id).execute()
 
