@@ -7,137 +7,147 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
 
 export interface UploadZoneProps {
-  isPremium?: boolean;
-  onFileSelect: (file: File) => void;
-  selectedFile: File | null;
+  onFileSelect: (files: File[]) => void;
+  selectedFiles: File[];
   onClear: () => void;
   progress?: number;
   converting?: boolean;
+  isPremium?: boolean;
+  multiple?: boolean;
 }
 
-export function UploadZone({
-  isPremium = false,
-  onFileSelect,
-  selectedFile,
+export function UploadZone({ 
+  onFileSelect, 
+  selectedFiles, 
   onClear,
   progress = 0,
   converting = false,
+  isPremium = false,
+  multiple = false
 }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
+  const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  }, []);
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setIsDragging(true);
+    } else if (e.type === "dragleave") {
       setIsDragging(false);
-      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        onFileSelect(e.dataTransfer.files[0]);
-      }
-    },
-    [onFileSelect]
-  );
+    }
+  }, []);
 
-  const handleFileInput = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files && e.target.files.length > 0) {
-        onFileSelect(e.target.files[0]);
-      }
-    },
-    [onFileSelect]
-  );
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const filesArray = Array.from(e.dataTransfer.files);
+      onFileSelect(multiple ? filesArray : [filesArray[0]]);
+    }
+  }, [multiple, onFileSelect]);
+
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const filesArray = Array.from(e.target.files);
+      onFileSelect(multiple ? filesArray : [filesArray[0]]);
+    }
+  }, [multiple, onFileSelect]);
 
   return (
     <div className="w-full">
-      <AnimatePresence mode="wait">
-        {!selectedFile ? (
+      <label
+        htmlFor="file-upload"
+        onDragEnter={handleDrag}
+        onDragLeave={handleDrag}
+        onDragOver={handleDrag}
+        onDrop={handleDrop}
+        className={clsx(
+          "relative flex flex-col items-center justify-center w-full min-h-[280px] p-12 border-2 border-dashed rounded-3xl cursor-pointer transition-all duration-300",
+          isDragging 
+            ? "border-purple-500 bg-purple-50 scale-[1.02]" 
+            : isPremium 
+              ? "border-slate-700 bg-slate-900/50 hover:bg-slate-800" 
+              : "border-slate-300 bg-slate-50 hover:bg-slate-100",
+          converting && "pointer-events-none opacity-50"
+        )}
+      >
+        <div className="flex flex-col items-center justify-center space-y-4 text-center">
+          <div className={clsx(
+            "p-4 rounded-full transition-colors",
+            isDragging ? "bg-purple-100 text-purple-600" : isPremium ? "bg-slate-800 text-slate-400" : "bg-white text-slate-400 shadow-sm"
+          )}>
+            <UploadCloud className="w-10 h-10" />
+          </div>
+          <div>
+            <p className={clsx("text-xl font-bold mb-2", isPremium ? "text-white" : "text-slate-700")}>
+              {multiple ? "Drop files here or click to upload" : "Drop file here or click to upload"}
+            </p>
+            <p className={clsx("text-sm", isPremium ? "text-slate-400" : "text-slate-500")}>
+              Supports all major formats up to 350MB (Free) or Unlimited (Premium)
+            </p>
+          </div>
+        </div>
+      </label>
+
+      <input
+        type="file"
+        id="file-upload"
+        className="hidden"
+        onChange={handleChange}
+        multiple={multiple}
+      />
+
+      <AnimatePresence>
+        {selectedFiles.length > 0 && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, scale: 0.98 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
             className={clsx(
-              "relative group border-2 border-dashed rounded-xl p-12 text-center transition-all cursor-pointer overflow-hidden",
-              isDragging
-                ? (isPremium ? "border-purple-500 bg-purple-500/10" : "border-blue-500 bg-blue-50")
-                : (isPremium ? "border-white/10 hover:border-purple-500/50 bg-slate-900/40 hover:bg-slate-800/60" : "border-slate-300 hover:border-blue-400 bg-slate-50"),
-              isPremium && "shadow-xl shadow-black/20 hover:shadow-[0_0_40px_-10px_rgba(124,58,237,0.3)]"
+              "mt-6 bg-white rounded-xl shadow-sm border overflow-hidden",
+              isPremium ? "border-purple-500/20 bg-slate-900" : "border-slate-200"
             )}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
           >
-            <input
-              type="file"
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-              onChange={handleFileInput}
-            />
-            
-            <div className="flex flex-col items-center justify-center space-y-4">
-              <div
-                className={clsx(
-                  "p-4 rounded-full transition-transform duration-500",
-                  isDragging ? "scale-110" : "group-hover:scale-105",
-                  isPremium ? "bg-purple-500/20 text-purple-400" : "bg-primary/10 text-primary"
+            {selectedFiles.map((f, i) => (
+              <div key={i} className="flex items-center space-x-4 p-4 border-b border-slate-100 last:border-0">
+                <div className={clsx("p-3 rounded-lg flex-shrink-0", isPremium ? "bg-purple-500/20 text-purple-400" : "bg-blue-50 text-blue-600")}>
+                  <FileImage className="w-6 h-6" />
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <p className={clsx("text-sm font-bold truncate", isPremium ? "text-white" : "text-slate-900")}>{f.name}</p>
+                  <p className={clsx("text-xs font-medium mt-1", isPremium ? "text-slate-400" : "text-slate-500")}>
+                    {(f.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+                {!converting && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const newFiles = [...selectedFiles];
+                      newFiles.splice(i, 1);
+                      if (newFiles.length === 0) onClear();
+                      else onFileSelect(newFiles);
+                    }}
+                    className={clsx(
+                      "p-2 rounded-full transition-colors flex-shrink-0",
+                      isPremium ? "hover:bg-red-500/20 text-slate-400 hover:text-red-400" : "hover:bg-red-50 text-slate-400 hover:text-red-500"
+                    )}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 )}
-              >
-                <UploadCloud className="w-8 h-8" />
               </div>
-              <div>
-                <p className={clsx("text-lg font-semibold", isPremium ? "text-slate-200" : "text-slate-900")}>
-                  Click or drag file to this area to upload
-                </p>
-                <p className={clsx("text-sm mt-1", isPremium ? "text-slate-400" : "text-muted-foreground")}>
-                  Supports all file types up to 350MB (Free) or 2GB (Premium)
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className={clsx(
-              "relative rounded-xl p-6 border transition-all",
-              isPremium ? "border-purple-500/30 bg-purple-900/20 backdrop-blur-sm" : "border-border bg-card"
-            )}
-          >
-            <div className="flex items-center space-x-4">
-              <div className={clsx("p-3 rounded-lg", isPremium ? "bg-purple-500/20 text-purple-400" : "bg-primary/10 text-primary")}>
-                <FileImage className="w-6 h-6" />
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <p className={clsx("text-sm font-medium truncate", isPremium ? "text-slate-200" : "text-slate-900")}>{selectedFile.name}</p>
-                <p className={clsx("text-xs", isPremium ? "text-slate-400" : "text-muted-foreground")}>
-                  {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                </p>
-              </div>
-              {!converting && (
-                <button
-                  onClick={onClear}
-                  className={clsx(
-                    "p-2 rounded-full transition-colors",
-                    isPremium ? "hover:bg-red-500/20 hover:text-red-400 text-slate-400" : "hover:bg-destructive/10 hover:text-destructive text-slate-500"
-                  )}
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              )}
-            </div>
+            ))}
+            
             {converting && (
-              <div className="mt-4 space-y-2">
-                <div className={clsx("flex justify-between text-xs", isPremium ? "text-slate-300" : "text-muted-foreground")}>
+              <div className="p-5 bg-slate-50 border-t border-slate-100">
+                <div className={clsx("flex justify-between text-sm font-bold mb-3", isPremium ? "text-slate-300" : "text-slate-700")}>
                   <span>Processing...</span>
                   <span>{progress}%</span>
                 </div>
-                <Progress value={progress} className={clsx("h-2", isPremium ? "bg-slate-800" : "")} />
+                <Progress value={progress} className={clsx("h-2.5", isPremium ? "bg-slate-800" : "bg-slate-200")} />
               </div>
             )}
           </motion.div>

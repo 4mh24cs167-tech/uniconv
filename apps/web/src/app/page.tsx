@@ -21,7 +21,7 @@ export default function Home() {
   const [activeToolTitle, setActiveToolTitle] = useState<string>("");
 
   // Shared state for the active tool
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [targetFormat, setTargetFormat] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -34,7 +34,7 @@ export default function Home() {
   const [detectedCategory, setDetectedCategory] = useState<string>("Unknown");
 
   const resetState = () => {
-    setFile(null);
+    setFiles([]);
     setTargetFormat("");
     setIsProcessing(false);
     setProgress(0);
@@ -51,37 +51,46 @@ export default function Home() {
   };
 
   const handleProcess = async () => {
-    if (!file) return;
+    if (files.length === 0) return;
     setIsProcessing(true);
-    setProgress(0);
+    setProgress(10);
     setError(null);
+    setResultUrl(null);
 
-    const isWatermark = view === "WATERMARK_REMOVER";
+    const isWatermark = activeToolTitle === "Watermark Remover";
     const isExcelTemplate = view === "PDF_TO_EXCEL";
-    const endpoint = isWatermark ? "/api/remove-watermark" : "/api/convert";
-    const isLargeFile = file.size > 20 * 1024 * 1024; // > 20MB
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
     try {
-      // 1. Upload file to Supabase Storage
+      // 1. Upload files to Supabase Storage
       const { uploadFileToSupabaseResumable } = await import('@/lib/upload');
       
-      const fileRecord = await uploadFileToSupabaseResumable(file, "uploads", (p) => {
-        // Dedicate 0-50% progress for upload
-        setProgress(Math.floor(p / 2));
-      });
+      const fileIds = [];
+      let totalUploaded = 0;
+      
+      for (const f of files) {
+        const fileRecord = await uploadFileToSupabaseResumable(f, "uploads", (p) => {
+          // Math to split the 50% progress among all files
+          const baseProgress = (totalUploaded / files.length) * 50;
+          const currentFileProgress = (p / 100) * (50 / files.length);
+          setProgress(Math.floor(baseProgress + currentFileProgress));
+        });
 
-      if (!fileRecord || !fileRecord.id) {
-        throw new Error("Failed to upload file to storage");
+        if (!fileRecord || !fileRecord.id) {
+          throw new Error(`Failed to upload ${f.name}`);
+        }
+        fileIds.push(fileRecord.id);
+        totalUploaded++;
       }
 
       // 2. Create Job in FastAPI Backend
-      const res = await fetch(`${apiUrl}/api/jobs?file_id=${fileRecord.id}`, {
+      const res = await fetch(`${apiUrl}/api/jobs?file_id=${fileIds[0]}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tool: activeToolTitle,
           target_format: targetFormat || null,
+          input_file_ids: fileIds
         })
       });
 
@@ -385,25 +394,32 @@ export default function Home() {
                   {!resultUrl ? (
                     <>
                       <UploadZone 
-                        isPremium={isPremium} 
-                        selectedFile={file} 
-                        onFileSelect={async (f) => {
-                          // Free limit logic simulation before backend enforcement
-                          const limitMB = 350; // Free tier limit
-                          const fileSizeMB = f.size / (1024 * 1024);
-                          if (fileSizeMB > limitMB && !isPremium) {
-                            setRejectedFileSize(fileSizeMB);
-                            setShowPremiumGate(true);
-                            return;
+                        isPremium={isPremium}
+                        multiple={activeToolTitle === "Merge PDF"}
+                        selectedFiles={files} 
+                        onFileSelect={async (newFiles) => {
+                          const isMerge = activeToolTitle === "Merge PDF";
+                          const limitMB = isPremium ? Infinity : 350; 
+                          
+                          for (const f of newFiles) {
+                            const fileSizeMB = f.size / (1024 * 1024);
+                            if (fileSizeMB > limitMB) {
+                              setRejectedFileSize(fileSizeMB);
+                              setShowPremiumGate(true);
+                              return;
+                            }
                           }
 
-                          setFile(f);
-                          setError(null);
+                          if (isMerge) {
+                            setFiles(prev => [...prev, ...newFiles]);
+                          } else {
+                            setFiles([newFiles[0]]);
+                          }
                           
                           if (view === "UNIVERSAL_CONVERTER") {
                             const { getAvailableTargetFormats, detectCategory } = await import('@/lib/conversions');
-                            const formats = getAvailableTargetFormats(f.name);
-                            const cat = detectCategory(f.name);
+                            const formats = getAvailableTargetFormats(newFiles[0].name);
+                            const cat = detectCategory(newFiles[0].name);
                             
                             if (formats.length === 0) {
                               setError("Unsupported file format.");
@@ -416,12 +432,12 @@ export default function Home() {
                             }
                           }
                         }}
-                        onClear={() => resetState()}
+                        onClear={resetState}
                         progress={progress}
                         converting={isProcessing}
                       />
 
-                      {file && !isProcessing && (
+                      {files.length > 0 && !isProcessing && (
                         <motion.div 
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
@@ -441,15 +457,18 @@ export default function Home() {
                               )}
                             </div>
                           )}
-                          <Button 
+                          <Button
+                            onClick={handleProcess}
+                            disabled={isProcessing || files.length === 0 || (view === "UNIVERSAL_CONVERTER" && !targetFormat)}
                             size="lg"
-                            onClick={handleProcess} 
                             className={clsx(
-                              "w-full sm:w-auto font-bold mt-7",
-                              isPremium ? "bg-gradient-to-r from-purple-500 to-blue-500 hover:opacity-90 text-white border-0 shadow-lg shadow-purple-500/25" : ""
+                              "w-full sm:w-auto min-w-[200px] h-14 text-lg font-bold shadow-lg transition-all hover:scale-105 active:scale-95",
+                              isPremium 
+                                ? "bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white shadow-purple-500/25" 
+                                : "bg-slate-900 hover:bg-slate-800 text-white"
                             )}
-                            disabled={view === "UNIVERSAL_CONVERTER" && availableFormats.length === 0}
                           >
+                            <Settings className="w-5 h-5 mr-2" />
                             {view === "WATERMARK_REMOVER" ? (
                               <><Eraser className="w-5 h-5 mr-2" /> Clean File</>
                             ) : view === "PDF_TO_EXCEL" ? (

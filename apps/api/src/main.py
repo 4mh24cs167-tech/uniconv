@@ -58,6 +58,7 @@ class JobRequest(BaseModel):
     tool: str
     target_format: Optional[str] = None
     target_size_mb: Optional[float] = None
+    input_file_ids: Optional[list[str]] = None
     # additional config
 
 @app.post("/api/jobs")
@@ -105,12 +106,15 @@ async def create_job(
     if file_size > max_file_size:
         raise HTTPException(status_code=413, detail=f"File exceeds maximum allowed size for your tier. ({max_file_size / (1024*1024)}MB)")
     
+    # Extract input files array
+    input_ids = request.input_file_ids if request.input_file_ids else [file_id]
+    
     # ---------------------------
     
     # Create Job in DB
     job_data = {
         "tool": request.tool,
-        "input_file_ids": [file_id],
+        "input_file_ids": input_ids,
         "configuration": {
             "target_format": request.target_format,
             "target_size_mb": request.target_size_mb
@@ -152,31 +156,30 @@ async def process_document_job(job_id: str):
     supabase.table("processing_jobs").update({"status": "PROCESSING"}).eq("id", job_id).execute()
     
     try:
-        # 1. Fetch job details
-        job_res = supabase.table("processing_jobs").select("*").eq("id", job_id).execute()
-        if not job_res.data:
-            raise Exception("Job not found")
-        job = job_res.data[0]
+        # 1. Fetch Job and Input Files Metadata
+        job_res = supabase.table("processing_jobs").select("*, files:input_file_ids").eq("id", job_id).single().execute()
+        job = job_res.data
         
-        file_id = job["input_file_ids"][0]
-        
-        # Fetch file details
-        file_res = supabase.table("files").select("*").eq("id", file_id).execute()
-        if not file_res.data:
-            raise Exception("Input file not found in DB")
-        file_metadata = file_res.data[0]
-        storage_key = file_metadata["storage_key"]
+        input_ids = job["input_file_ids"]
         
         with tempfile.TemporaryDirectory() as temp_dir:
-            input_path = os.path.join(temp_dir, file_metadata["filename"])
-            output_path = os.path.join(temp_dir, f"processed_{file_metadata['filename']}")
+            input_paths = []
             
-            # 2. Download from Supabase Storage
-            res = supabase.storage.from_("uploads").download(storage_key)
-            with open(input_path, "wb") as f:
-                f.write(res)
+            for f_id in input_ids:
+                file_metadata_res = supabase.table("files").select("*").eq("id", f_id).single().execute()
+                file_metadata = file_metadata_res.data
+                storage_key = file_metadata["storage_key"]
                 
-            print(f"Downloaded {file_metadata['filename']} successfully")
+                # 2. Download from Supabase Storage
+                storage_res = supabase.storage.from_("uploads").download(storage_key)
+                in_path = os.path.join(temp_dir, f"{f_id}_{file_metadata['filename']}")
+                with open(in_path, "wb") as f:
+                    f.write(storage_res)
+                input_paths.append(in_path)
+                
+            # Assume output file uses the first file's name with "processed_" prefix
+            output_filename = f"processed_{job['id']}.pdf" # or dynamically set based on target_format
+            output_path = os.path.join(temp_dir, output_filename)
             
             # 3. Process based on tool
             tool = job["tool"]
@@ -184,45 +187,46 @@ async def process_document_job(job_id: str):
             
             if tool == "Compress PDF":
                 target_size = job.get("configuration", {}).get("target_size_mb")
-                success = PDFService.compress_pdf(input_path, output_path, target_size)
+                success = PDFService.compress_pdf(input_paths[0], output_path, target_size)
             elif tool == "Split PDF":
-                # For split, we output multiple files. For this MVP, let's just split the first page or package into zip.
-                # Since we only upload ONE result file in this MVP schema, we will mock splitting by saving page 1.
-                out_files = PDFService.split_pdf(input_path, temp_dir, ranges=[(1, 1)])
+                out_files = PDFService.split_pdf(input_paths[0], temp_dir, ranges=[(1, 1)])
                 if out_files:
                     import shutil
                     shutil.copy(out_files[0], output_path)
                     success = True
             elif tool == "Compress JPG":
                 from services.image_service import ImageService
-                success = ImageService.compress_jpg(input_path, output_path, quality=50)
+                success = ImageService.compress_jpg(input_paths[0], output_path, quality=50)
+                output_filename = f"processed_{job['id']}.jpg"
+                output_path = os.path.join(temp_dir, output_filename) # update path with right ext
             elif tool == "Merge PDF":
-                success = PDFService.merge_pdfs([input_path], output_path) # Needs multiple files logic later
+                success = PDFService.merge_pdfs(input_paths, output_path)
             else:
-                # Mock generic success for other tools for now
                 import shutil
-                shutil.copy(input_path, output_path)
+                shutil.copy(input_paths[0], output_path)
                 success = True
                 
             if not success:
                 raise Exception(f"Processing failed for tool: {tool}")
                 
-            # 4. Upload result to Storage
-            result_key = f"{job['user_id']}/results/{job_id}_{file_metadata['filename']}"
+            # 4. Upload Result to Supabase Storage
             with open(output_path, "rb") as f:
-                supabase.storage.from_("results").upload(result_key, f)
+                upload_res = supabase.storage.from_("results").upload(
+                    path=output_filename,
+                    file=f,
+                    file_options={"content-type": "application/pdf"} # naive content type
+                )
                 
-            # Create result file DB entry
-            result_file_data = {
+            # 5. Create Result File Record in DB
+            result_file_res = supabase.table("files").insert({
                 "user_id": job["user_id"],
-                "filename": f"processed_{file_metadata['filename']}",
-                "original_filename": file_metadata['original_filename'],
+                "filename": output_filename,
+                "original_filename": output_filename,
                 "size_bytes": os.path.getsize(output_path),
-                "storage_key": result_key,
-                "status": "active"
-            }
-            res_file = supabase.table("files").insert(result_file_data).execute()
-            result_file_id = res_file.data[0]["id"]
+                "storage_key": output_filename,
+            }).execute()
+            
+            result_file_id = result_file_res.data[0]["id"]
             
             # 5. Update job status to COMPLETED
             supabase.table("processing_jobs").update({
