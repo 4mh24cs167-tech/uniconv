@@ -297,77 +297,80 @@ async def process_document_job(job_id: str):
                     f.write(storage_res)
                 input_paths.append(in_path)
                 
-            # Assume output file uses the first file's name with "processed_" prefix
-            output_filename = f"processed_{job['id']}.pdf" # or dynamically set based on target_format
-            output_path = os.path.join(temp_dir, output_filename)
-            
             # 3. Process based on tool
             tool = job["tool"]
             success = False
             
             if tool == "Compress PDF":
+                output_filename = f"processed_{job['id']}.pdf"
+                output_path = os.path.join(temp_dir, output_filename)
                 target_size = job.get("configuration", {}).get("target_size_mb")
                 success = PDFService.compress_pdf(input_paths[0], output_path, target_size)
             elif tool == "Split PDF":
+                output_filename = f"processed_{job['id']}.pdf"
+                output_path = os.path.join(temp_dir, output_filename)
                 out_files = PDFService.split_pdf(input_paths[0], temp_dir, ranges=[(1, 1)])
                 if out_files:
                     import shutil
                     shutil.copy(out_files[0], output_path)
                     success = True
             elif tool == "Compress JPG":
+                output_filename = f"processed_{job['id']}.jpg"
+                output_path = os.path.join(temp_dir, output_filename)
                 from src.services.image_service import ImageService
                 success = ImageService.compress_jpg(input_paths[0], output_path, quality=50)
-                output_filename = f"processed_{job['id']}.jpg"
-                output_path = os.path.join(temp_dir, output_filename) # update path with right ext
             elif tool == "Merge PDF":
+                output_filename = f"processed_{job['id']}.pdf"
+                output_path = os.path.join(temp_dir, output_filename)
                 success = PDFService.merge_pdfs(input_paths, output_path)
             elif tool == "PDF to Word":
-                success = PDFService.pdf_to_word(input_paths[0], output_path)
                 output_filename = f"processed_{job['id']}.docx"
                 output_path = os.path.join(temp_dir, output_filename)
+                success = PDFService.pdf_to_word(input_paths[0], output_path)
             elif tool == "PDF to Excel":
-                success = PDFService.pdf_to_excel(input_paths[0], output_path)
                 output_filename = f"processed_{job['id']}.xlsx"
                 output_path = os.path.join(temp_dir, output_filename)
+                success = PDFService.pdf_to_excel(input_paths[0], output_path)
             elif tool == "PDF to PowerPoint":
-                success = PDFService.pdf_to_pptx(input_paths[0], output_path)
                 output_filename = f"processed_{job['id']}.pptx"
                 output_path = os.path.join(temp_dir, output_filename)
+                success = PDFService.pdf_to_pptx(input_paths[0], output_path)
             elif tool == "Extract Text (OCR)":
-                success = PDFService.extract_text_ocr(input_paths[0], output_path)
                 output_filename = f"processed_{job['id']}.txt"
                 output_path = os.path.join(temp_dir, output_filename)
+                success = PDFService.extract_text_ocr(input_paths[0], output_path)
             elif tool == "PDF to JPG":
+                output_filename = f"processed_{job['id']}.zip"
+                output_path = os.path.join(temp_dir, output_filename)
                 out_files = PDFService.pdf_to_jpg(input_paths[0], temp_dir)
                 if out_files:
                     import shutil
-                    output_filename = f"processed_{job['id']}.zip"
-                    output_path = os.path.join(temp_dir, output_filename)
                     shutil.copy(out_files[0], output_path)
                     success = True
             elif tool == "JPG to PDF":
-                from src.services.image_service import ImageService
-                success = ImageService.jpg_to_pdf(input_paths, output_path)
                 output_filename = f"processed_{job['id']}.pdf"
                 output_path = os.path.join(temp_dir, output_filename)
+                from src.services.image_service import ImageService
+                success = ImageService.jpg_to_pdf(input_paths, output_path)
             elif tool == "Extract Audio":
-                from src.services.media_service import MediaService
                 output_filename = f"processed_{job['id']}.mp3"
                 output_path = os.path.join(temp_dir, output_filename)
+                from src.services.media_service import MediaService
                 success = MediaService.extract_audio(input_paths[0], output_path)
             elif tool == "Watermark Remover":
-                from src.services.media_service import MediaService
-                # Keep same extension for output
                 ext = os.path.splitext(input_paths[0])[1] or ".jpg"
                 output_filename = f"cleaned_{job['id']}{ext}"
                 output_path = os.path.join(temp_dir, output_filename)
+                from src.services.media_service import MediaService
                 success = MediaService.remove_watermark(input_paths[0], output_path)
             elif tool in ["Word to PDF", "Excel to PDF", "PowerPoint to PDF"]:
-                from src.services.media_service import MediaService
                 output_filename = f"processed_{job['id']}.pdf"
                 output_path = os.path.join(temp_dir, output_filename)
+                from src.services.media_service import MediaService
                 success = MediaService.office_to_pdf(input_paths[0], output_path)
             else:
+                output_filename = f"processed_{job['id']}.pdf"
+                output_path = os.path.join(temp_dir, output_filename)
                 import shutil
                 shutil.copy(input_paths[0], output_path)
                 success = True
