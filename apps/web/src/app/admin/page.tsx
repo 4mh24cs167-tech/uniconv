@@ -73,6 +73,20 @@ export default function AdminPanel() {
         console.error(updateError);
         return;
       }
+
+      // Send email notification
+      const user = users.find(u => u.id === userId);
+      if (user && user.email) {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://uniconv.onrender.com";
+        await fetch(`${apiUrl}/api/admin/notify-upgrade`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_email: user.email,
+            plan_name: newPlanName
+          })
+        }).catch(err => console.error("Failed to notify user:", err));
+      }
       
       alert(`User successfully upgraded to ${newPlanName}!`);
       

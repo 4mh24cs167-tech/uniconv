@@ -338,3 +338,17 @@ async def process_document_job(job_id: str):
             "error_message": str(e)
         }).eq("id", job_id).execute()
 
+class NotifyRequest(BaseModel):
+    user_email: str
+    plan_name: str
+
+@app.post("/api/admin/notify-upgrade")
+def notify_upgrade(req: NotifyRequest):
+    """
+    Sends an upgrade confirmation email to the user.
+    """
+    from services.email_service import EmailService
+    success = EmailService.send_upgrade_email(req.user_email, req.plan_name)
+    if success:
+        return {"status": "success", "message": "Email sent"}
+    raise HTTPException(status_code=500, detail="Failed to send email. Check SMTP configuration.")
