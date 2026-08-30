@@ -226,6 +226,23 @@ async def process_document_job(job_id: str):
                 success = ImageService.jpg_to_pdf(input_paths, output_path)
                 output_filename = f"processed_{job['id']}.pdf"
                 output_path = os.path.join(temp_dir, output_filename)
+            elif tool == "Extract Audio":
+                from services.media_service import MediaService
+                output_filename = f"processed_{job['id']}.mp3"
+                output_path = os.path.join(temp_dir, output_filename)
+                success = MediaService.extract_audio(input_paths[0], output_path)
+            elif tool == "Watermark Remover":
+                from services.media_service import MediaService
+                # Keep same extension for output
+                ext = os.path.splitext(input_paths[0])[1] or ".jpg"
+                output_filename = f"cleaned_{job['id']}{ext}"
+                output_path = os.path.join(temp_dir, output_filename)
+                success = MediaService.remove_watermark(input_paths[0], output_path)
+            elif tool in ["Word to PDF", "Excel to PDF", "PowerPoint to PDF"]:
+                from services.media_service import MediaService
+                output_filename = f"processed_{job['id']}.pdf"
+                output_path = os.path.join(temp_dir, output_filename)
+                success = MediaService.office_to_pdf(input_paths[0], output_path)
             else:
                 import shutil
                 shutil.copy(input_paths[0], output_path)
