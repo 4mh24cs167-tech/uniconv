@@ -5,20 +5,16 @@ class MediaService:
     @staticmethod
     def extract_audio(input_path: str, output_path: str) -> bool:
         """
-        Extracts audio from a video file using moviepy (which relies on ffmpeg).
+        Extracts audio from a video file using raw FFmpeg.
         """
         try:
-            from moviepy.editor import VideoFileClip
-            video = VideoFileClip(input_path)
-            audio = video.audio
-            if audio:
-                audio.write_audiofile(output_path, logger=None)
-                audio.close()
-            video.close()
+            command = [
+                "ffmpeg", "-y", "-i", input_path,
+                "-q:a", "0", "-map", "a",
+                output_path
+            ]
+            subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             return True
-        except ImportError:
-            print("moviepy is not installed.")
-            return False
         except Exception as e:
             print(f"Error extracting audio: {e}")
             return False
@@ -26,38 +22,58 @@ class MediaService:
     @staticmethod
     def remove_watermark(input_path: str, output_path: str) -> bool:
         """
-        Naive watermark removal using OpenCV inpainting.
-        Assumes the watermark is in the bottom right corner.
-        For production, this would use a deep learning model.
+        Removes watermark. Uses OpenCV inpainting for images, and FFmpeg delogo for videos.
         """
         try:
-            import cv2
-            import numpy as np
-            
-            img = cv2.imread(input_path)
-            if img is None:
-                raise Exception("Could not read image for watermark removal")
+            ext = os.path.splitext(input_path)[1].lower()
+            if ext in ['.mp4', '.mov', '.avi', '.mkv', '.webm']:
+                # Video: Use FFmpeg delogo (assuming bottom right corner)
+                # delogo=x=W-200:y=H-100:w=200:h=100
+                command = [
+                    "ffmpeg", "-y", "-i", input_path,
+                    "-vf", "delogo=x=iw-iw*0.2:y=ih-ih*0.1:w=iw*0.2:h=ih*0.1",
+                    "-c:a", "copy",
+                    output_path
+                ]
+                subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                return True
+            else:
+                import cv2
+                import numpy as np
                 
-            h, w = img.shape[:2]
-            
-            # Create a mask for the bottom right corner
-            mask = np.zeros((h, w), dtype=np.uint8)
-            
-            # Assume watermark is in the bottom right 20% width and 10% height
-            mask_h = int(h * 0.10)
-            mask_w = int(w * 0.20)
-            mask[h - mask_h:, w - mask_w:] = 255
-            
-            # Inpaint
-            result = cv2.inpaint(img, mask, 3, cv2.INPAINT_TELEA)
-            
-            cv2.imwrite(output_path, result)
-            return True
-        except ImportError:
-            print("opencv-python-headless not installed.")
-            return False
+                img = cv2.imread(input_path)
+                if img is None:
+                    raise Exception("Could not read image for watermark removal")
+                    
+                h, w = img.shape[:2]
+                mask = np.zeros((h, w), dtype=np.uint8)
+                
+                mask_h = int(h * 0.10)
+                mask_w = int(w * 0.20)
+                mask[h - mask_h:, w - mask_w:] = 255
+                
+                result = cv2.inpaint(img, mask, 3, cv2.INPAINT_TELEA)
+                cv2.imwrite(output_path, result)
+                return True
         except Exception as e:
             print(f"Error removing watermark: {e}")
+            return False
+
+    @staticmethod
+    def convert_audio(input_path: str, output_path: str) -> bool:
+        """
+        Transcodes audio from one format to another using FFmpeg.
+        """
+        try:
+            command = [
+                "ffmpeg", "-y", "-i", input_path,
+                "-vn", # Disable video just in case
+                output_path
+            ]
+            subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            return True
+        except Exception as e:
+            print(f"Error converting audio: {e}")
             return False
 
     @staticmethod

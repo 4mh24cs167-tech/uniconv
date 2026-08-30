@@ -179,7 +179,7 @@ class JobRequest(BaseModel):
     target_format: Optional[str] = None
     target_size_mb: Optional[float] = None
     input_file_ids: Optional[list[str]] = None
-    # additional config
+    configuration: Optional[dict] = None
 
 @app.post("/api/jobs")
 async def create_job(
@@ -232,13 +232,17 @@ async def create_job(
     # ---------------------------
     
     # Create Job in DB
+    base_config = {
+        "target_format": request.target_format,
+        "target_size_mb": request.target_size_mb
+    }
+    if request.configuration:
+        base_config.update(request.configuration)
+        
     job_data = {
         "tool": request.tool,
         "input_file_ids": input_ids,
-        "configuration": {
-            "target_format": request.target_format,
-            "target_size_mb": request.target_size_mb
-        },
+        "configuration": base_config,
         "status": "QUEUED"
     }
     
@@ -374,6 +378,41 @@ async def process_document_job(job_id: str):
                 output_path = os.path.join(temp_dir, output_filename)
                 from src.services.media_service import MediaService
                 success = MediaService.extract_audio(input_paths[0], output_path)
+            elif tool == "Audio Conversions":
+                target_fmt = job.get("configuration", {}).get("target_format", "mp3")
+                output_filename = f"processed_{job['id']}.{target_fmt}"
+                output_path = os.path.join(temp_dir, output_filename)
+                from src.services.media_service import MediaService
+                success = MediaService.convert_audio(input_paths[0], output_path)
+            elif tool == "Unlock PDF":
+                output_filename = f"unlocked_{job['id']}.pdf"
+                output_path = os.path.join(temp_dir, output_filename)
+                password = job.get("configuration", {}).get("password", "")
+                success = PDFService.unlock_pdf(input_paths[0], output_path, password)
+            elif tool == "secure_pdf_password":
+                output_filename = f"secured_{job['id']}.pdf"
+                output_path = os.path.join(temp_dir, output_filename)
+                password = job.get("configuration", {}).get("password", "")
+                success = PDFService.secure_password(input_paths[0], output_path, password)
+            elif tool == "secure_pdf_permissions":
+                output_filename = f"secured_{job['id']}.pdf"
+                output_path = os.path.join(temp_dir, output_filename)
+                permissions = job.get("configuration", {}).get("permissions", {})
+                success = PDFService.secure_permissions(input_paths[0], output_path, permissions)
+            elif tool == "secure_pdf_watermark":
+                output_filename = f"secured_{job['id']}.pdf"
+                output_path = os.path.join(temp_dir, output_filename)
+                config = job.get("configuration", {})
+                success = PDFService.secure_watermark(input_paths[0], output_path, config)
+            elif tool == "secure_pdf_redact":
+                output_filename = f"secured_{job['id']}.pdf"
+                output_path = os.path.join(temp_dir, output_filename)
+                text_to_redact = job.get("configuration", {}).get("text", "")
+                success = PDFService.secure_redact(input_paths[0], output_path, text_to_redact)
+            elif tool == "secure_pdf_metadata":
+                output_filename = f"secured_{job['id']}.pdf"
+                output_path = os.path.join(temp_dir, output_filename)
+                success = PDFService.remove_metadata(input_paths[0], output_path)
             elif tool == "Watermark Remover":
                 ext = os.path.splitext(input_paths[0])[1] or ".jpg"
                 output_filename = f"cleaned_{job['id']}{ext}"

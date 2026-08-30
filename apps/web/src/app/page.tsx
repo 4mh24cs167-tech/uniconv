@@ -8,12 +8,12 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, CheckCircle2, Download, Eraser, ArrowLeft, FileText, FileImage, FileSpreadsheet, FileArchive, Zap, Settings, Lock, Menu, X, UploadCloud } from "lucide-react";
+import { AlertCircle, CheckCircle2, Download, Eraser, ArrowLeft, FileText, FileImage, FileSpreadsheet, FileArchive, Zap, Settings, Lock, Menu, X, UploadCloud, Music, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import { PremiumGate } from "@/components/PremiumGate";
 
-type ViewState = "HUB" | "UNIVERSAL_CONVERTER" | "WATERMARK_REMOVER" | "PDF_TO_EXCEL";
+type ViewState = "HUB" | "UNIVERSAL_CONVERTER" | "WATERMARK_REMOVER" | "PDF_TO_EXCEL" | "AUDIO_CONVERTER" | "SECURE_PDF";
 
 export default function Home() {
   const [isPremium, setIsPremium] = useState(false);
@@ -23,6 +23,15 @@ export default function Home() {
   const [activeToolTitle, setActiveToolTitle] = useState<string>("");
   const [splitPage, setSplitPage] = useState<number>(1);
   const [resultFilename, setResultFilename] = useState<string | null>(null);
+  
+  // Audio Conversions state
+  const [sourceAudioFormat, setSourceAudioFormat] = useState<string>("mp3");
+  const [targetAudioFormat, setTargetAudioFormat] = useState<string>("wav");
+
+  // Secure PDF state
+  const [secureTool, setSecureTool] = useState<string>("password");
+  const [secureConfig, setSecureConfig] = useState<any>({});
+
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -146,15 +155,30 @@ export default function Home() {
         totalUploaded++;
       }
 
+      let toolName = activeToolTitle;
+      let finalTargetFormat = targetFormat;
+      let configuration: any = undefined;
+
+      if (view === "AUDIO_CONVERTER") {
+        toolName = "Audio Conversions";
+        finalTargetFormat = targetAudioFormat;
+        configuration = { target_format: targetAudioFormat };
+      } else if (view === "SECURE_PDF") {
+        toolName = `secure_pdf_${secureTool}`;
+        configuration = secureConfig;
+      } else if (activeToolTitle === "Split PDF") {
+        configuration = { split_page: splitPage };
+      }
+
       // 2. Create Job in FastAPI Backend
       const res = await fetch(`${apiUrl}/api/jobs?file_id=${fileIds[0]}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tool: activeToolTitle,
-          target_format: targetFormat || null,
+          tool: toolName,
+          target_format: finalTargetFormat || null,
           input_file_ids: fileIds,
-          configuration: activeToolTitle === "Split PDF" ? { split_page: splitPage } : undefined
+          configuration: configuration
         })
       });
 
@@ -302,6 +326,20 @@ export default function Home() {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 <ToolCard 
                   isPremium={isPremium}
+                  title="Audio Conversions" 
+                  description="Convert your audio files between popular formats."
+                  icon={<Music className="w-10 h-10" />}
+                  onClick={() => { navigateTo("AUDIO_CONVERTER", "Audio Conversions"); }}
+                />
+                <ToolCard 
+                  isPremium={isPremium}
+                  title="Secure PDF" 
+                  description="Protect and secure your PDF documents with passwords, permissions, watermarks and redaction."
+                  icon={<Shield className="w-10 h-10" />}
+                  onClick={() => { navigateTo("SECURE_PDF", "Secure PDF"); }}
+                />
+                <ToolCard 
+                  isPremium={isPremium}
                   title="Merge PDF" 
                   description="Combine PDFs in the order you want with the easiest PDF merger available."
                   icon={<FileText className="w-10 h-10" />}
@@ -430,7 +468,232 @@ export default function Home() {
             </motion.div>
           )}
 
-          {view !== "HUB" && (
+          {view === "SECURE_PDF" && (
+            <motion.div
+              key="secure-pdf"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="w-full max-w-7xl mx-auto"
+            >
+              <button 
+                onClick={() => navigateTo("HUB")}
+                className="flex items-center space-x-2 text-sm font-semibold mb-6 text-slate-500 hover:text-[#e5322d] transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to Hub</span>
+              </button>
+              
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 bg-white border shadow-lg rounded-2xl overflow-hidden">
+                {/* Left Sidebar */}
+                <div className="md:col-span-1 border-r bg-slate-50 p-4">
+                  <h3 className="font-bold text-lg mb-4 text-slate-800 px-2">Security Tools</h3>
+                  <div className="space-y-2">
+                    {["password", "permissions", "watermark", "redact", "metadata"].map(tool => (
+                      <button
+                        key={tool}
+                        onClick={() => setSecureTool(tool)}
+                        className={clsx(
+                          "w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors",
+                          secureTool === tool 
+                            ? "bg-[#e5322d] text-white shadow-md" 
+                            : "text-slate-600 hover:bg-slate-200"
+                        )}
+                      >
+                        {tool === "password" && "Password Protect"}
+                        {tool === "permissions" && "Permissions"}
+                        {tool === "watermark" && "Watermark"}
+                        {tool === "redact" && "Redact"}
+                        {tool === "metadata" && "Remove Metadata"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Center / Right Content */}
+                <div className="md:col-span-3 p-6 flex flex-col h-full min-h-[500px]">
+                  {!resultUrl ? (
+                    <>
+                      <div className="mb-8">
+                        <h2 className="text-2xl font-bold mb-2">
+                          {secureTool === "password" && "Password Protect PDF"}
+                          {secureTool === "permissions" && "Set PDF Permissions"}
+                          {secureTool === "watermark" && "Add Watermark"}
+                          {secureTool === "redact" && "Redact Content"}
+                          {secureTool === "metadata" && "Remove Metadata"}
+                        </h2>
+                        <p className="text-slate-500">
+                          {secureTool === "password" && "Add a password to restrict who can open this document."}
+                          {secureTool === "permissions" && "Restrict printing, copying, and editing."}
+                          {secureTool === "watermark" && "Stamp a text watermark over your document pages."}
+                          {secureTool === "redact" && "Permanently black out text in your PDF."}
+                          {secureTool === "metadata" && "Wipe author, title, and creator tags for privacy."}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1">
+                        <div>
+                          <UploadZone 
+                            isPremium={isPremium}
+                            multiple={false}
+                            selectedFiles={files} 
+                            onFileRemove={(index) => {
+                              setFiles(prev => {
+                                const newFiles = [...prev];
+                                newFiles.splice(index, 1);
+                                if (newFiles.length === 0) resetState();
+                                return newFiles;
+                              });
+                            }}
+                            onCancel={() => {
+                              if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+                              setIsProcessing(false);
+                              setProgress(0);
+                            }}
+                            onFileSelect={async (newFiles) => setFiles([newFiles[0]])}
+                            onClear={resetState}
+                            progress={progress}
+                            converting={isProcessing}
+                          />
+                        </div>
+
+                        <div className="bg-slate-50 p-6 rounded-xl border flex flex-col justify-between">
+                          <div className="space-y-4">
+                            {secureTool === "password" && (
+                              <div>
+                                <Label className="mb-2 block">Document Password</Label>
+                                <input 
+                                  type="password" 
+                                  placeholder="Enter secure password" 
+                                  className="w-full border p-3 rounded-md"
+                                  value={secureConfig.password || ""}
+                                  onChange={e => setSecureConfig({...secureConfig, password: e.target.value})}
+                                />
+                              </div>
+                            )}
+
+                            {secureTool === "permissions" && (
+                              <div className="space-y-3">
+                                {['print', 'copy', 'edit', 'comments', 'fill_forms'].map(p => (
+                                  <label key={p} className="flex items-center space-x-3 cursor-pointer">
+                                    <input 
+                                      type="checkbox" 
+                                      className="w-4 h-4 rounded text-[#e5322d] focus:ring-[#e5322d]"
+                                      checked={secureConfig.permissions?.[p] || false}
+                                      onChange={e => setSecureConfig({
+                                        ...secureConfig, 
+                                        permissions: {...(secureConfig.permissions || {}), [p]: e.target.checked}
+                                      })}
+                                    />
+                                    <span className="text-sm font-medium capitalize text-slate-700">{p.replace('_', ' ')}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+
+                            {secureTool === "watermark" && (
+                              <div>
+                                <Label className="mb-2 block">Watermark Text</Label>
+                                <input 
+                                  type="text" 
+                                  placeholder="CONFIDENTIAL" 
+                                  className="w-full border p-3 rounded-md"
+                                  value={secureConfig.text || ""}
+                                  onChange={e => setSecureConfig({...secureConfig, text: e.target.value})}
+                                />
+                              </div>
+                            )}
+
+                            {secureTool === "redact" && (
+                              <div>
+                                <Label className="mb-2 block">Text to Redact</Label>
+                                <input 
+                                  type="text" 
+                                  placeholder="e.g. John Doe, SSN, etc." 
+                                  className="w-full border p-3 rounded-md mb-2"
+                                  value={secureConfig.text || ""}
+                                  onChange={e => setSecureConfig({...secureConfig, text: e.target.value})}
+                                />
+                                <p className="text-xs text-red-500 font-medium">
+                                  Warning: Redaction permanently removes the matching text from the document.
+                                </p>
+                              </div>
+                            )}
+
+                            {secureTool === "metadata" && (
+                              <div>
+                                <p className="text-sm text-slate-600">
+                                  Clicking 'Apply Security' will completely wipe all metadata (Author, Title, Creator, Producer) from the uploaded PDF.
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          <Button
+                            onClick={handleProcess}
+                            disabled={isProcessing || files.length === 0}
+                            size="lg"
+                            className="w-full h-12 mt-6 bg-[#e5322d] hover:bg-[#c42824] text-white"
+                          >
+                            <Shield className="w-5 h-5 mr-2" />
+                            Apply Security
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                      <div className="p-4 rounded-full mb-6 bg-green-100 text-green-600">
+                        <CheckCircle2 className="w-16 h-16" />
+                      </div>
+                      <h3 className="text-3xl font-extrabold mb-4 text-slate-800">
+                        PDF Secured Successfully ✓
+                      </h3>
+                      <p className="mb-8 text-lg text-slate-600">
+                        Operations applied: {secureTool}
+                      </p>
+                      
+                      <div className="flex flex-col gap-4 w-full justify-center sm:w-auto mx-auto">
+                        <Button 
+                          size="lg"
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(resultUrl);
+                              const blob = await res.blob();
+                              const blobUrl = window.URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = blobUrl;
+                              a.download = resultFilename ? resultFilename : `secured_${files[0]?.name || 'file.pdf'}`;
+                              document.body.appendChild(a);
+                              a.click();
+                              document.body.removeChild(a);
+                            } catch (e) {
+                              console.error("Download failed", e);
+                              window.open(resultUrl, "_blank");
+                            }
+                          }}
+                          className="w-full sm:w-auto min-w-[200px] h-14 text-lg font-bold bg-[#e5322d] hover:bg-[#c42824]"
+                        >
+                          <Download className="w-5 h-5 mr-2" />
+                          Download Secured PDF
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          size="lg"
+                          onClick={resetState}
+                          className="w-full sm:w-auto min-w-[200px] h-14"
+                        >
+                          Secure Another PDF
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {view !== "HUB" && view !== "SECURE_PDF" && (
             <motion.div
               key="tool"
               initial={{ opacity: 0 }}
@@ -547,6 +810,36 @@ export default function Home() {
                           animate={{ opacity: 1, y: 0 }}
                           className="flex flex-col sm:flex-row items-center gap-4 bg-slate-500/5 p-4 rounded-xl border border-slate-500/10"
                         >
+                          {view === "AUDIO_CONVERTER" && (
+                            <div className="flex-1 w-full flex items-center gap-4">
+                              <div className="flex-1">
+                                <Label className="text-xs mb-1 block">From</Label>
+                                <select 
+                                  value={sourceAudioFormat} 
+                                  onChange={(e) => setSourceAudioFormat(e.target.value)}
+                                  className={clsx("w-full rounded-md border px-3 py-2 text-sm", isPremium ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200")}
+                                >
+                                  {["mp3", "wav", "ogg", "aac", "m4a", "flac", "wma", "aiff", "opus"].map(fmt => (
+                                    <option key={fmt} value={fmt}>{fmt.toUpperCase()}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <ArrowLeft className="w-5 h-5 text-slate-400 rotate-180 mt-4" />
+                              <div className="flex-1">
+                                <Label className="text-xs mb-1 block">To</Label>
+                                <select 
+                                  value={targetAudioFormat} 
+                                  onChange={(e) => setTargetAudioFormat(e.target.value)}
+                                  className={clsx("w-full rounded-md border px-3 py-2 text-sm", isPremium ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200")}
+                                >
+                                  {["mp3", "wav", "ogg", "aac", "m4a", "flac", "wma", "aiff", "opus"].filter(fmt => fmt !== sourceAudioFormat).map(fmt => (
+                                    <option key={fmt} value={fmt}>{fmt.toUpperCase()}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                          )}
+
                           {view === "UNIVERSAL_CONVERTER" && 
                            !activeToolTitle?.startsWith("Compress") && 
                            !activeToolTitle?.includes("Merge") && 

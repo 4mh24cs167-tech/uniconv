@@ -253,8 +253,116 @@ class PDFService:
                 
             return True
         except ImportError:
-            print("pytesseract or PyMuPDF or PIL not installed.")
+            print("pytesseract/Pillow not installed.")
             return False
         except Exception as e:
-            print(f"Error during OCR extraction: {e}")
+            print(f"Error extracting text: {e}")
+            return False
+
+    @staticmethod
+    def unlock_pdf(input_path: str, output_path: str, password: str = "") -> bool:
+        try:
+            from PyPDF2 import PdfReader, PdfWriter
+            reader = PdfReader(input_path)
+            if reader.is_encrypted:
+                reader.decrypt(password)
+            writer = PdfWriter()
+            for page in reader.pages:
+                writer.add_page(page)
+            with open(output_path, "wb") as f:
+                writer.write(f)
+            return True
+        except Exception as e:
+            print(f"Error unlocking PDF: {e}")
+            return False
+
+    @staticmethod
+    def secure_password(input_path: str, output_path: str, password: str) -> bool:
+        try:
+            from PyPDF2 import PdfReader, PdfWriter
+            reader = PdfReader(input_path)
+            writer = PdfWriter()
+            for page in reader.pages:
+                writer.add_page(page)
+            writer.encrypt(user_password=password, owner_password=password, use_128bit=True)
+            with open(output_path, "wb") as f:
+                writer.write(f)
+            return True
+        except Exception as e:
+            print(f"Error applying password to PDF: {e}")
+            return False
+
+    @staticmethod
+    def secure_permissions(input_path: str, output_path: str, permissions: dict) -> bool:
+        try:
+            # permissions dict: {'print': bool, 'copy': bool, 'edit': bool, 'comments': bool, 'fill_forms': bool}
+            import fitz
+            doc = fitz.open(input_path)
+            perms = fitz.PDF_PERM_ACCESSIBILITY # always allow accessibility
+            if permissions.get("print", False):
+                perms |= fitz.PDF_PERM_PRINT
+            if permissions.get("copy", False):
+                perms |= fitz.PDF_PERM_COPY
+            if permissions.get("edit", False):
+                perms |= fitz.PDF_PERM_MODIFY
+            if permissions.get("comments", False):
+                perms |= fitz.PDF_PERM_ANNOTATE
+            if permissions.get("fill_forms", False):
+                perms |= fitz.PDF_PERM_FORM
+            
+            doc.save(output_path, permissions=perms, owner_pw="admin")
+            doc.close()
+            return True
+        except Exception as e:
+            print(f"Error applying permissions to PDF: {e}")
+            return False
+
+    @staticmethod
+    def secure_watermark(input_path: str, output_path: str, config: dict) -> bool:
+        try:
+            import fitz
+            doc = fitz.open(input_path)
+            text = config.get("text")
+            
+            for page in doc:
+                rect = page.rect
+                if text:
+                    # Simple center watermark
+                    point = fitz.Point(rect.width / 4, rect.height / 2)
+                    page.insert_text(point, text, fontsize=50, color=(0.5, 0.5, 0.5), rotate=45, fill_opacity=0.3)
+            doc.save(output_path)
+            doc.close()
+            return True
+        except Exception as e:
+            print(f"Error watermarking PDF: {e}")
+            return False
+
+    @staticmethod
+    def secure_redact(input_path: str, output_path: str, text_to_redact: str) -> bool:
+        try:
+            import fitz
+            doc = fitz.open(input_path)
+            for page in doc:
+                text_instances = page.search_for(text_to_redact)
+                for inst in text_instances:
+                    page.add_redact_annot(inst, fill=(0, 0, 0))
+                page.apply_redactions()
+            doc.save(output_path)
+            doc.close()
+            return True
+        except Exception as e:
+            print(f"Error redacting PDF: {e}")
+            return False
+
+    @staticmethod
+    def remove_metadata(input_path: str, output_path: str) -> bool:
+        try:
+            import fitz
+            doc = fitz.open(input_path)
+            doc.set_metadata({})
+            doc.save(output_path)
+            doc.close()
+            return True
+        except Exception as e:
+            print(f"Error removing metadata: {e}")
             return False
