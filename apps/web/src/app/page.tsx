@@ -154,6 +154,12 @@ export default function Home() {
             )}
           </div>
           <div className="flex items-center gap-4">
+            <a href="/pricing" className={clsx(
+              "text-sm font-semibold transition-colors mr-2",
+              isPremium ? "text-purple-300 hover:text-white" : "text-purple-600 hover:text-purple-900"
+            )}>
+              Pricing
+            </a>
             <a href="/login" className={clsx(
               "text-sm font-semibold transition-colors",
               isPremium ? "text-slate-300 hover:text-white" : "text-slate-600 hover:text-slate-900"

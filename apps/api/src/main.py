@@ -29,6 +29,31 @@ supabase: Client = create_client(url, key) if url and key else None
 def read_root():
     return {"message": "Document Productivity API is running"}
 
+class RazorpayOrderRequest(BaseModel):
+    plan_id: str
+    user_id: str
+
+@app.post("/api/subscriptions/create-order")
+async def create_razorpay_order(request: RazorpayOrderRequest):
+    """
+    Creates a Razorpay order for the requested plan.
+    (Mocked for now since credentials are not provided)
+    """
+    return {
+        "status": "success",
+        "order_id": "order_mock_" + os.urandom(4).hex(),
+        "amount": 999, # $9.99 * 100
+        "currency": "USD"
+    }
+
+@app.post("/api/subscriptions/webhook")
+async def razorpay_webhook():
+    """
+    Handles successful payment webhooks.
+    """
+    return {"status": "ok"}
+
+
 class JobRequest(BaseModel):
     tool: str
     target_format: Optional[str] = None
@@ -39,7 +64,8 @@ class JobRequest(BaseModel):
 async def create_job(
     request: JobRequest,
     file_id: str,
-    background_tasks: BackgroundTasks
+    user_id: Optional[str] = None, # Passed from frontend via auth token in reality
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """
     1. Authenticate user (guest or registered)
@@ -50,7 +76,41 @@ async def create_job(
     if not supabase:
         raise HTTPException(status_code=500, detail="Supabase not configured")
         
-    # TODO: Implement Limit Checking & Auth Verification
+    # --- LIMIT CHECKING LOGIC ---
+    # 1. Fetch file metadata
+    file_res = supabase.table("files").select("size_bytes").eq("id", file_id).execute()
+    if not file_res.data:
+        raise HTTPException(status_code=404, detail="File not found")
+    file_size = file_res.data[0]["size_bytes"]
+
+    # 2. Determine limits based on User Plan
+    max_file_size = 10 * 1024 * 1024 # 10MB default for guests
+    
+    if user_id:
+        user_res = supabase.table("users").select("plan_id, daily_operation_count").eq("id", user_id).execute()
+        if user_res.data:
+            user_data = user_res.data[0]
+            plan_res = supabase.table("plans").select("max_file_size_bytes, daily_operations").eq("id", user_data["plan_id"]).execute()
+            
+            if plan_res.data:
+                plan = plan_res.data[0]
+                max_file_size = plan["max_file_size_bytes"]
+                
+                # Check daily operations limit
+                if user_data["daily_operation_count"] >= plan["daily_operations"]:
+                    raise HTTPException(status_code=402, detail="Daily operation limit reached. Please upgrade your plan.")
+
+    # 3. Check File Size Limit
+    if file_size > max_file_size:
+        raise HTTPException(status_code=413, detail=f"File exceeds maximum allowed size for your tier. ({max_file_size / (1024*1024)}MB)")
+    
+    # 4. Increment daily usage for registered users
+    if user_id:
+        # In production, use RPC to avoid race conditions
+        supabase.table("users").update({
+            "daily_operation_count": user_data["daily_operation_count"] + 1
+        }).eq("id", user_id).execute()
+    # ---------------------------
     
     # Create Job in DB
     job_data = {
@@ -63,17 +123,20 @@ async def create_job(
         "status": "QUEUED"
     }
     
+    if user_id:
+        job_data["user_id"] = user_id
+    
     try:
         response = supabase.table("processing_jobs").insert(job_data).execute()
         job = response.data[0]
         
-        # Enqueue background processing (simulating Celery/Redis for native Windows)
+        # Enqueue background processing
         background_tasks.add_task(process_document_job, job["id"])
         
         return {"job_id": job["id"], "status": "QUEUED"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
+    
 async def process_document_job(job_id: str):
     """
     Background worker that:
