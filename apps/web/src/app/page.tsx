@@ -22,6 +22,7 @@ export default function Home() {
   const [view, setView] = useState<ViewState>("HUB");
   const [activeToolTitle, setActiveToolTitle] = useState<string>("");
   const [splitPage, setSplitPage] = useState<number>(1);
+  const [resultFilename, setResultFilename] = useState<string | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -73,6 +74,7 @@ export default function Home() {
     setIsProcessing(false);
     setProgress(0);
     setResultUrl(null);
+    setResultFilename(null);
     setError(null);
     setAvailableFormats([]);
     setDetectedCategory("Unknown");
@@ -198,10 +200,12 @@ export default function Home() {
               if (data.result_file && data.result_file.storage_key) {
                 const { data: urlData } = supabase.storage.from("results").getPublicUrl(data.result_file.storage_key, { download: true });
                 setResultUrl(urlData.publicUrl);
+                setResultFilename(data.result_file.storage_key);
               } else if (data.result_file && Array.isArray(data.result_file) && data.result_file[0]?.storage_key) {
                 // In case it returns an array
                 const { data: urlData } = supabase.storage.from("results").getPublicUrl(data.result_file[0].storage_key, { download: true });
                 setResultUrl(urlData.publicUrl);
+                setResultFilename(data.result_file[0].storage_key);
               }
               setIsProcessing(false);
             } else if (data.status === "FAILED") {
@@ -630,11 +634,14 @@ export default function Home() {
                               const blobUrl = window.URL.createObjectURL(blob);
                               const a = document.createElement('a');
                               a.href = blobUrl;
+                              const extMatch = resultFilename ? resultFilename.match(/\.([a-zA-Z0-9]+)$/) : null;
+                              const ext = extMatch ? extMatch[1] : (targetFormat || 'pdf');
+
                               a.download = view === "WATERMARK_REMOVER" 
                                 ? `cleaned_${files[0]?.name || 'file'}`
                                 : view === "PDF_TO_EXCEL"
                                 ? `template_${files[0]?.name.split('.')[0] || 'data'}.xlsx`
-                                : `converted.${targetFormat || 'pdf'}`;
+                                : `converted.${ext}`;
                               document.body.appendChild(a);
                               a.click();
                               document.body.removeChild(a);
