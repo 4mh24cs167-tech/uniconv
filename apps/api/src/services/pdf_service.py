@@ -109,25 +109,30 @@ class PDFService:
         try:
             import pdfplumber
             import pandas as pd
+            import gc
             
-            all_tables = []
-            with pdfplumber.open(input_path) as pdf:
-                for page in pdf.pages:
-                    tables = page.extract_tables()
-                    for table in tables:
-                        # Convert each table to a DataFrame
-                        df = pd.DataFrame(table[1:], columns=table[0])
-                        all_tables.append(df)
+            table_count = 0
+            with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
+                with pdfplumber.open(input_path) as pdf:
+                    for page in pdf.pages:
+                        tables = page.extract_tables()
+                        for table in tables:
+                            if not table or not table[0]: continue
+                            df = pd.DataFrame(table[1:], columns=table[0])
+                            # Openpyxl limits sheet names to 31 chars
+                            sheet_name = f"Table_{table_count+1}"[:31]
+                            df.to_excel(writer, sheet_name=sheet_name, index=False)
+                            table_count += 1
+                            del df
+                            del table
+                        
+                        # CRITICAL: Clear pdfplumber page cache to prevent OOM on Render
+                        page.flush_cache()
+                        del tables
+                        gc.collect()
             
-            if not all_tables:
-                # If no tables found, just create an empty excel
+            if table_count == 0:
                 pd.DataFrame([["No tables detected in PDF"]]).to_excel(output_path, index=False)
-                return True
-                
-            # Write all tables to different sheets or concat them
-            with pd.ExcelWriter(output_path) as writer:
-                for i, df in enumerate(all_tables):
-                    df.to_excel(writer, sheet_name=f"Table_{i+1}", index=False)
                     
             return True
         except ImportError:

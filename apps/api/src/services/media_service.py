@@ -13,7 +13,7 @@ class MediaService:
                 "-q:a", "0", "-map", "a",
                 output_path
             ]
-            subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             return True
         except Exception as e:
             print(f"Error extracting audio: {e}")
@@ -59,7 +59,7 @@ class MediaService:
                     "-c:a", "copy",
                     output_path
                 ]
-                subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 return True
             else:
                 import cv2
@@ -106,7 +106,7 @@ class MediaService:
                 "-vn", # Disable video just in case
                 output_path
             ]
-            subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             return True
         except Exception as e:
             print(f"Error converting audio: {e}")
@@ -129,10 +129,10 @@ class MediaService:
             
             # On some systems, the command is 'soffice'
             try:
-                subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             except FileNotFoundError:
                 command[0] = "soffice"
-                subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 
             # Libreoffice names the output file the same as input but with .pdf
             base_name = os.path.splitext(os.path.basename(input_path))[0]
