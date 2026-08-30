@@ -76,30 +76,103 @@ scheduler.start()
 def read_root():
     return {"message": "Document Productivity API is running"}
 
+# --- Razorpay Setup ---
+import razorpay
+from fastapi import Request, Header
+
+RZP_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
+RZP_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
+RZP_WEBHOOK_SECRET = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")
+
+razorpay_client = razorpay.Client(auth=(RZP_KEY_ID, RZP_KEY_SECRET)) if RZP_KEY_ID and RZP_KEY_SECRET else None
+
 class RazorpayOrderRequest(BaseModel):
     plan_id: str
     user_id: str
 
 @app.post("/api/subscriptions/create-order")
-async def create_razorpay_order(request: RazorpayOrderRequest):
+async def create_razorpay_order(req: RazorpayOrderRequest):
     """
     Creates a Razorpay order for the requested plan.
-    (Mocked for now since credentials are not provided)
     """
-    return {
-        "status": "success",
-        "order_id": "order_mock_" + os.urandom(4).hex(),
-        "amount": 999, # $9.99 * 100
-        "currency": "USD"
+    if not razorpay_client:
+        raise HTTPException(status_code=500, detail="Razorpay not configured on server")
+        
+    # Map plan to amount (in smallest currency unit, e.g., cents/paise)
+    plan_prices = {
+        "pro": 499, # $4.99 -> 499 cents
+        "premium": 999
     }
+    
+    amount = plan_prices.get(req.plan_id.lower())
+    if not amount:
+        raise HTTPException(status_code=400, detail="Invalid plan ID")
+        
+    try:
+        order_data = {
+            "amount": amount,
+            "currency": "USD",
+            "receipt": f"receipt_{req.user_id}_{req.plan_id}",
+            "notes": {
+                "user_id": req.user_id,
+                "plan_id": req.plan_id
+            }
+        }
+        order = razorpay_client.order.create(data=order_data)
+        
+        return {
+            "status": "success",
+            "order_id": order["id"],
+            "amount": amount,
+            "currency": "USD",
+            "key_id": RZP_KEY_ID
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/subscriptions/webhook")
-async def razorpay_webhook():
+async def razorpay_webhook(request: Request, x_razorpay_signature: str = Header(None)):
     """
-    Handles successful payment webhooks.
+    Handles successful payment webhooks to auto-upgrade users.
     """
-    return {"status": "ok"}
-
+    if not razorpay_client or not RZP_WEBHOOK_SECRET:
+        return {"status": "ignored", "reason": "Razorpay not configured"}
+        
+    body = await request.body()
+    
+    try:
+        # Verify webhook signature
+        razorpay_client.utility.verify_webhook_signature(
+            body.decode("utf-8"),
+            x_razorpay_signature,
+            RZP_WEBHOOK_SECRET
+        )
+        
+        payload = await request.json()
+        event = payload.get("event")
+        
+        if event == "payment.captured" or event == "order.paid":
+            # Extract notes to find user_id and plan_id
+            payment_entity = payload["payload"].get("payment", {}).get("entity", {})
+            notes = payment_entity.get("notes", {})
+            
+            user_id = notes.get("user_id")
+            plan_id = notes.get("plan_id")
+            
+            if user_id and plan_id:
+                # Update user in DB
+                supabase.table("users").update({
+                    "plan": plan_id.lower(),
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }).eq("id", user_id).execute()
+                
+                print(f"Automatically upgraded user {user_id} to {plan_id} via Webhook!")
+                
+        return {"status": "success"}
+    except razorpay.errors.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 class JobRequest(BaseModel):
     tool: str

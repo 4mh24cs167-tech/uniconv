@@ -5,24 +5,76 @@ import { Button } from "@/components/ui/button";
 import { clsx } from "clsx";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Script from "next/script";
 
 export default function PricingPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  const handleUpgrade = () => {
+  const handleUpgrade = async (planId: string) => {
     setLoading(true);
-    // User requested to show alert for now
-    setTimeout(() => {
-      alert("Payment integration will be implemented in next update!");
+    
+    try {
+      const { createBrowserClient } = await import('@supabase/ssr');
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push("/login");
+        return;
+      }
+      
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://uniconv.onrender.com";
+      const res = await fetch(`${apiUrl}/api/subscriptions/create-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan_id: planId,
+          user_id: session.user.id
+        })
+      });
+      
+      if (!res.ok) {
+        throw new Error("Failed to create order. Please check Razorpay configuration.");
+      }
+      
+      const data = await res.json();
+      
+      const options = {
+        key: data.key_id,
+        amount: data.amount,
+        currency: data.currency,
+        name: "UniConv",
+        description: `${planId.toUpperCase()} Plan Subscription`,
+        order_id: data.order_id,
+        handler: function (response: any) {
+          alert(`Payment successful! Welcome to the ${planId} tier! Refreshing...`);
+          router.push("/dashboard");
+        },
+        theme: {
+          color: "#8b5cf6" // Purple-500
+        }
+      };
+      
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+      
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-24 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center max-w-3xl mx-auto mb-16">
+    <>
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+      <div className="min-h-screen bg-slate-50 py-24 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight sm:text-5xl">
             Simple, transparent pricing
           </h2>
@@ -97,7 +149,7 @@ export default function PricingPage() {
             <Button 
               variant="outline"
               className="w-full py-6 text-lg font-bold hover:bg-slate-50"
-              onClick={handleUpgrade}
+              onClick={() => handleUpgrade('pro')}
               disabled={loading}
             >
               {loading ? "Preparing Checkout..." : "Upgrade to Pro"}
@@ -137,7 +189,7 @@ export default function PricingPage() {
             </ul>
             <Button 
               className="w-full py-6 text-lg font-bold bg-gradient-to-r from-purple-500 to-blue-500 hover:opacity-90 border-0 shadow-lg shadow-purple-500/25 relative"
-              onClick={handleUpgrade}
+              onClick={() => handleUpgrade('premium')}
               disabled={loading}
             >
               {loading ? "Preparing Checkout..." : "Upgrade to Premium"}
