@@ -274,24 +274,24 @@ export default function Home() {
                 />
                 <ToolCard 
                   isPremium={isPremium}
-                  title="Edit PDF" 
-                  description="Add text, images, shapes or freehand annotations to a PDF document."
-                  icon={<FileText className="w-10 h-10" />}
-                  onClick={() => { setTargetFormat("pdf"); navigateTo("UNIVERSAL_CONVERTER", "Edit PDF"); }}
+                  title="JPG to PDF" 
+                  description="Convert JPG images to PDF in seconds. Easily adjust orientation and margins."
+                  icon={<FileImage className="w-10 h-10" />}
+                  onClick={() => { setTargetFormat("pdf"); navigateTo("UNIVERSAL_CONVERTER", "JPG to PDF"); }}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="PDF to JPG" 
-                  description="Convert each PDF page into a JPG or extract all images contained in a PDF."
+                  description="Extract all images inside a PDF or convert each page to a JPG image."
                   icon={<FileImage className="w-10 h-10" />}
                   onClick={() => { setTargetFormat("jpg"); navigateTo("UNIVERSAL_CONVERTER", "PDF to JPG"); }}
                 />
                 <ToolCard 
                   isPremium={isPremium}
-                  title="JPG to PDF" 
-                  description="Convert JPG images to PDF in seconds. Easily adjust orientation and margins."
+                  title="JPG Compressor" 
+                  description="Compress your JPG images to the smallest file size while keeping perfect quality."
                   icon={<FileImage className="w-10 h-10" />}
-                  onClick={() => { setTargetFormat("pdf"); navigateTo("UNIVERSAL_CONVERTER", "JPG to PDF"); }}
+                  onClick={() => { setTargetFormat("jpg"); navigateTo("UNIVERSAL_CONVERTER", "Compress JPG"); }}
                 />
                 <ToolCard 
                   isPremium={isPremium}

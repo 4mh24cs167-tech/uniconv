@@ -182,10 +182,21 @@ async def process_document_job(job_id: str):
             tool = job["tool"]
             success = False
             
-            if tool == "COMPRESS_PDF":
+            if tool == "Compress PDF":
                 target_size = job.get("configuration", {}).get("target_size_mb")
                 success = PDFService.compress_pdf(input_path, output_path, target_size)
-            elif tool == "MERGE_PDF":
+            elif tool == "Split PDF":
+                # For split, we output multiple files. For this MVP, let's just split the first page or package into zip.
+                # Since we only upload ONE result file in this MVP schema, we will mock splitting by saving page 1.
+                out_files = PDFService.split_pdf(input_path, temp_dir, ranges=[(1, 1)])
+                if out_files:
+                    import shutil
+                    shutil.copy(out_files[0], output_path)
+                    success = True
+            elif tool == "Compress JPG":
+                from services.image_service import ImageService
+                success = ImageService.compress_jpg(input_path, output_path, quality=50)
+            elif tool == "Merge PDF":
                 success = PDFService.merge_pdfs([input_path], output_path) # Needs multiple files logic later
             else:
                 # Mock generic success for other tools for now
