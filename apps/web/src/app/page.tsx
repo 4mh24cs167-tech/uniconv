@@ -484,10 +484,13 @@ export default function Home() {
                 <span>Back to Hub</span>
               </button>
               
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 bg-white border shadow-lg rounded-2xl overflow-hidden">
+              <div className={clsx(
+                "grid grid-cols-1 md:grid-cols-4 gap-6 border shadow-lg rounded-2xl overflow-hidden",
+                isPremium ? "bg-slate-900/80 border-white/10" : "bg-white border-slate-200 text-slate-900"
+              )}>
                 {/* Left Sidebar */}
-                <div className="md:col-span-1 border-r bg-slate-50 p-4">
-                  <h3 className="font-bold text-lg mb-4 text-slate-800 px-2">Security Tools</h3>
+                <div className={clsx("md:col-span-1 border-r p-4", isPremium ? "bg-slate-800/50 border-white/10" : "bg-slate-50")}>
+                  <h3 className={clsx("font-bold text-lg mb-4 px-2", isPremium ? "text-white" : "text-slate-800")}>Security Tools</h3>
                   <div className="space-y-2">
                     {["password", "permissions", "watermark", "redact", "metadata"].map(tool => (
                       <button
@@ -497,7 +500,7 @@ export default function Home() {
                           "w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors",
                           secureTool === tool 
                             ? "bg-[#e5322d] text-white shadow-md" 
-                            : "text-slate-600 hover:bg-slate-200"
+                            : isPremium ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-slate-200"
                         )}
                       >
                         {tool === "password" && "Password Protect"}
@@ -515,14 +518,14 @@ export default function Home() {
                   {!resultUrl ? (
                     <>
                       <div className="mb-8">
-                        <h2 className="text-2xl font-bold mb-2">
+                        <h2 className={clsx("text-2xl font-bold mb-2", isPremium ? "text-white" : "text-slate-900")}>
                           {secureTool === "password" && "Password Protect PDF"}
                           {secureTool === "permissions" && "Set PDF Permissions"}
                           {secureTool === "watermark" && "Add Watermark"}
                           {secureTool === "redact" && "Redact Content"}
                           {secureTool === "metadata" && "Remove Metadata"}
                         </h2>
-                        <p className="text-slate-500">
+                        <p className={isPremium ? "text-slate-400" : "text-slate-500"}>
                           {secureTool === "password" && "Add a password to restrict who can open this document."}
                           {secureTool === "permissions" && "Restrict printing, copying, and editing."}
                           {secureTool === "watermark" && "Stamp a text watermark over your document pages."}
@@ -557,15 +560,15 @@ export default function Home() {
                           />
                         </div>
 
-                        <div className="bg-slate-50 p-6 rounded-xl border flex flex-col justify-between">
+                        <div className={clsx("p-6 rounded-xl border flex flex-col justify-between", isPremium ? "bg-slate-800/50 border-white/10" : "bg-slate-50")}>
                           <div className="space-y-4">
                             {secureTool === "password" && (
                               <div>
-                                <Label className="mb-2 block">Document Password</Label>
+                                <Label className={clsx("mb-2 block", isPremium ? "text-slate-300" : "")}>Document Password</Label>
                                 <input 
                                   type="password" 
                                   placeholder="Enter secure password" 
-                                  className="w-full border p-3 rounded-md"
+                                  className={clsx("w-full border p-3 rounded-md", isPremium ? "bg-slate-900 border-slate-700 text-white" : "text-slate-900")}
                                   value={secureConfig.password || ""}
                                   onChange={e => setSecureConfig({...secureConfig, password: e.target.value})}
                                 />
@@ -585,7 +588,7 @@ export default function Home() {
                                         permissions: {...(secureConfig.permissions || {}), [p]: e.target.checked}
                                       })}
                                     />
-                                    <span className="text-sm font-medium capitalize text-slate-700">{p.replace('_', ' ')}</span>
+                                    <span className={clsx("text-sm font-medium capitalize", isPremium ? "text-slate-300" : "text-slate-700")}>{p.replace('_', ' ')}</span>
                                   </label>
                                 ))}
                               </div>
@@ -593,11 +596,11 @@ export default function Home() {
 
                             {secureTool === "watermark" && (
                               <div>
-                                <Label className="mb-2 block">Watermark Text</Label>
+                                <Label className={clsx("mb-2 block", isPremium ? "text-slate-300" : "")}>Watermark Text</Label>
                                 <input 
                                   type="text" 
                                   placeholder="CONFIDENTIAL" 
-                                  className="w-full border p-3 rounded-md"
+                                  className={clsx("w-full border p-3 rounded-md", isPremium ? "bg-slate-900 border-slate-700 text-white" : "text-slate-900")}
                                   value={secureConfig.text || ""}
                                   onChange={e => setSecureConfig({...secureConfig, text: e.target.value})}
                                 />
@@ -606,11 +609,11 @@ export default function Home() {
 
                             {secureTool === "redact" && (
                               <div>
-                                <Label className="mb-2 block">Text to Redact</Label>
+                                <Label className={clsx("mb-2 block", isPremium ? "text-slate-300" : "")}>Text to Redact</Label>
                                 <input 
                                   type="text" 
                                   placeholder="e.g. John Doe, SSN, etc." 
-                                  className="w-full border p-3 rounded-md mb-2"
+                                  className={clsx("w-full border p-3 rounded-md mb-2", isPremium ? "bg-slate-900 border-slate-700 text-white" : "text-slate-900")}
                                   value={secureConfig.text || ""}
                                   onChange={e => setSecureConfig({...secureConfig, text: e.target.value})}
                                 />
@@ -622,7 +625,7 @@ export default function Home() {
 
                             {secureTool === "metadata" && (
                               <div>
-                                <p className="text-sm text-slate-600">
+                                <p className={clsx("text-sm", isPremium ? "text-slate-400" : "text-slate-600")}>
                                   Clicking 'Apply Security' will completely wipe all metadata (Author, Title, Creator, Producer) from the uploaded PDF.
                                 </p>
                               </div>
