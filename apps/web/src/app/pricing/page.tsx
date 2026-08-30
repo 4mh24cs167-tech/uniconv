@@ -31,7 +31,7 @@ export default function PricingPage() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {/* Free Plan */}
           <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 p-8 border border-slate-100 flex flex-col">
             <div className="mb-6">
@@ -43,13 +43,13 @@ export default function PricingPage() {
               <span className="text-slate-500 font-medium">/month</span>
             </div>
             <ul className="space-y-4 mb-8 flex-1">
-              {["10 MB Max File Size", "5 Operations per day", "Standard Processing Speed", "Basic Tools"].map((feature, i) => (
+              {["350 MB Max File Size", "Unlimited Operations", "Standard Processing Speed", "Basic Tools"].map((feature, i) => (
                 <li key={i} className="flex items-center text-slate-700">
                   <Check className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
                   {feature}
                 </li>
               ))}
-              {["Batch Processing", "OCR Text Extraction", "Document History"].map((feature, i) => (
+              {["Batch Processing", "OCR Text Extraction", "Priority Processing"].map((feature, i) => (
                 <li key={i} className="flex items-center text-slate-400">
                   <X className="w-5 h-5 text-slate-300 mr-3 flex-shrink-0" />
                   {feature}
@@ -62,6 +62,49 @@ export default function PricingPage() {
           </div>
 
           {/* Pro Plan */}
+          <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 p-8 border border-slate-100 flex flex-col relative overflow-hidden">
+            <div className="mb-6 relative">
+              <span className="absolute top-0 right-0 bg-slate-100 text-slate-600 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+                Advanced
+              </span>
+              <h3 className="text-2xl font-bold text-slate-900">Pro</h3>
+              <p className="text-slate-500 mt-2">For power users and professionals.</p>
+            </div>
+            <div className="mb-8 relative">
+              <span className="text-5xl font-extrabold text-slate-900">$4.99</span>
+              <span className="text-slate-500 font-medium">/month</span>
+            </div>
+            <ul className="space-y-4 mb-8 flex-1 relative">
+              {[
+                "1 GB Max File Size", 
+                "Unlimited Operations", 
+                "Priority Processing Speed", 
+                "Batch Processing (up to 50)",
+                "Basic Tools"
+              ].map((feature, i) => (
+                <li key={i} className="flex items-center text-slate-700">
+                  <Check className="w-5 h-5 text-purple-500 mr-3 flex-shrink-0" />
+                  {feature}
+                </li>
+              ))}
+              {["OCR Text Extraction"].map((feature, i) => (
+                <li key={i} className="flex items-center text-slate-400">
+                  <X className="w-5 h-5 text-slate-300 mr-3 flex-shrink-0" />
+                  {feature}
+                </li>
+              ))}
+            </ul>
+            <Button 
+              variant="outline"
+              className="w-full py-6 text-lg font-bold hover:bg-slate-50"
+              onClick={handleUpgrade}
+              disabled={loading}
+            >
+              {loading ? "Preparing Checkout..." : "Upgrade to Pro"}
+            </Button>
+          </div>
+
+          {/* Premium Plan */}
           <div className="bg-slate-900 rounded-3xl shadow-2xl shadow-purple-900/20 p-8 border border-slate-800 flex flex-col relative overflow-hidden">
             <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
               <div className="w-32 h-32 bg-purple-500 rounded-full blur-3xl" />
@@ -70,8 +113,8 @@ export default function PricingPage() {
               <span className="absolute top-0 right-0 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
                 Most Popular
               </span>
-              <h3 className="text-2xl font-bold text-white">Pro</h3>
-              <p className="text-slate-400 mt-2">For power users and professionals.</p>
+              <h3 className="text-2xl font-bold text-white">Premium</h3>
+              <p className="text-slate-400 mt-2">No limits, all features included.</p>
             </div>
             <div className="mb-8 relative">
               <span className="text-5xl font-extrabold text-white">$9.99</span>
@@ -79,12 +122,12 @@ export default function PricingPage() {
             </div>
             <ul className="space-y-4 mb-8 flex-1 relative">
               {[
-                "1 GB Max File Size", 
-                "1000 Operations per day", 
-                "Priority Processing Speed", 
-                "Batch Processing (up to 50)",
+                "Unlimited File Size", 
+                "Unlimited Operations", 
+                "Ultra-Fast Processing", 
+                "Unlimited Batch Processing",
                 "OCR Text Extraction",
-                "30-day Document History"
+                "All Advanced Tools"
               ].map((feature, i) => (
                 <li key={i} className="flex items-center text-slate-300">
                   <Check className="w-5 h-5 text-purple-400 mr-3 flex-shrink-0" />
@@ -97,7 +140,7 @@ export default function PricingPage() {
               onClick={handleUpgrade}
               disabled={loading}
             >
-              {loading ? "Preparing Checkout..." : "Upgrade to Pro"}
+              {loading ? "Preparing Checkout..." : "Upgrade to Premium"}
             </Button>
           </div>
         </div>

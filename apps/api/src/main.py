@@ -84,32 +84,27 @@ async def create_job(
     file_size = file_res.data[0]["size_bytes"]
 
     # 2. Determine limits based on User Plan
-    max_file_size = 10 * 1024 * 1024 # 10MB default for guests
+    max_file_size = 350 * 1024 * 1024 # 350MB default for Free/Guest
     
     if user_id:
-        user_res = supabase.table("users").select("plan_id, daily_operation_count").eq("id", user_id).execute()
+        user_res = supabase.table("users").select("plan_id").eq("id", user_id).execute()
         if user_res.data:
             user_data = user_res.data[0]
-            plan_res = supabase.table("plans").select("max_file_size_bytes, daily_operations").eq("id", user_data["plan_id"]).execute()
-            
-            if plan_res.data:
-                plan = plan_res.data[0]
-                max_file_size = plan["max_file_size_bytes"]
+            if user_data.get("plan_id"):
+                plan_res = supabase.table("plans").select("max_file_size_bytes").eq("id", user_data["plan_id"]).execute()
                 
-                # Check daily operations limit
-                if user_data["daily_operation_count"] >= plan["daily_operations"]:
-                    raise HTTPException(status_code=402, detail="Daily operation limit reached. Please upgrade your plan.")
+                if plan_res.data:
+                    plan = plan_res.data[0]
+                    # If max_file_size_bytes is very large or null, treat as unlimited (Premium)
+                    if plan["max_file_size_bytes"] > 0:
+                        max_file_size = plan["max_file_size_bytes"]
+                    else:
+                        max_file_size = float('inf')
 
     # 3. Check File Size Limit
     if file_size > max_file_size:
         raise HTTPException(status_code=413, detail=f"File exceeds maximum allowed size for your tier. ({max_file_size / (1024*1024)}MB)")
     
-    # 4. Increment daily usage for registered users
-    if user_id:
-        # In production, use RPC to avoid race conditions
-        supabase.table("users").update({
-            "daily_operation_count": user_data["daily_operation_count"] + 1
-        }).eq("id", user_id).execute()
     # ---------------------------
     
     # Create Job in DB

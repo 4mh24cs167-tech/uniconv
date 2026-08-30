@@ -379,7 +379,7 @@ export default function Home() {
                         selectedFile={file} 
                         onFileSelect={async (f) => {
                           // Free limit logic simulation before backend enforcement
-                          const limitMB = 10; // Guest limit
+                          const limitMB = 350; // Free tier limit
                           const fileSizeMB = f.size / (1024 * 1024);
                           if (fileSizeMB > limitMB && !isPremium) {
                             setRejectedFileSize(fileSizeMB);

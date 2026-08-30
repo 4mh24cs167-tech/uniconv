@@ -42,19 +42,19 @@ export function PremiumGate({ isOpen, onClose, fileSizeMB, limitMB }: PremiumGat
                 </div>
                 <h2 className="text-2xl font-bold mb-2">Unlock larger file processing</h2>
                 <p className="text-purple-100 text-lg">
-                  Your file is {fileSizeMB.toFixed(1)} MB. Free users can process files up to {limitMB} MB.
+                  Your file is {fileSizeMB.toFixed(1)} MB. Free users can process files up to 350 MB.
                 </p>
               </div>
               
               <div className="p-8">
                 <div className="space-y-4 mb-8">
                   {[
-                    "Up to 1 GB files",
-                    "Batch processing",
-                    "More storage",
-                    "Advanced comparison",
-                    "Priority processing",
-                    "Document history"
+                    "Up to 1 GB files (Pro) or Unlimited (Premium)",
+                    "Priority processing speed",
+                    "Unlimited batch processing",
+                    "Advanced OCR extraction",
+                    "No watermarks",
+                    "Dedicated support"
                   ].map((benefit, i) => (
                     <div key={i} className="flex items-center gap-3 text-slate-700">
                       <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
