@@ -578,17 +578,27 @@ export default function Home() {
                       <div className="flex flex-col gap-4 w-full justify-center sm:w-auto mx-auto">
                         <Button 
                           size="lg"
-                          onClick={() => {
-                            const a = document.createElement('a');
-                            a.href = resultUrl;
-                            a.download = view === "WATERMARK_REMOVER" 
-                              ? `cleaned_${files[0]?.name || 'file'}`
-                              : view === "PDF_TO_EXCEL"
-                              ? `template_${files[0]?.name.split('.')[0] || 'data'}.xlsx`
-                              : `converted.${targetFormat || 'pdf'}`;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(resultUrl);
+                              const blob = await res.blob();
+                              const blobUrl = window.URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = blobUrl;
+                              a.download = view === "WATERMARK_REMOVER" 
+                                ? `cleaned_${files[0]?.name || 'file'}`
+                                : view === "PDF_TO_EXCEL"
+                                ? `template_${files[0]?.name.split('.')[0] || 'data'}.xlsx`
+                                : `converted.${targetFormat || 'pdf'}`;
+                              document.body.appendChild(a);
+                              a.click();
+                              document.body.removeChild(a);
+                              window.URL.revokeObjectURL(blobUrl);
+                            } catch (e) {
+                              console.error("Download failed", e);
+                              // Fallback if fetch fails (e.g. CORS)
+                              window.open(resultUrl, '_blank');
+                            }
                           }}
                           className={clsx(
                             "h-14 px-8 text-lg font-bold shadow-lg transition-all hover:scale-105 active:scale-95",
