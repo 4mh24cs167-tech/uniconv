@@ -126,15 +126,16 @@ export default function Dashboard() {
                   "text-slate-900"
                 )}>
                   {plan} Tier
-              </span>
-              <Button onClick={() => router.push("/admin")} variant="ghost" size="sm" className="ml-2 text-slate-500 hover:text-slate-800">
-                Admin
-              </Button>
-              {plan === "free" && (
-                <Button onClick={() => router.push("/pricing")} variant="outline" size="sm" className="ml-2 text-purple-600 border-purple-200 hover:bg-purple-50">
-                  Upgrade
+                </span>
+                <Button onClick={() => router.push("/admin")} variant="ghost" size="sm" className="ml-2 text-slate-500 hover:text-slate-800">
+                  Admin
                 </Button>
-              )}
+                {plan === "free" && (
+                  <Button onClick={() => router.push("/pricing")} variant="outline" size="sm" className="ml-2 text-purple-600 border-purple-200 hover:bg-purple-50">
+                    Upgrade
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
