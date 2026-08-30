@@ -60,67 +60,77 @@ export default function Home() {
     const isExcelTemplate = view === "PDF_TO_EXCEL";
     const endpoint = isWatermark ? "/api/remove-watermark" : "/api/convert";
     const isLargeFile = file.size > 20 * 1024 * 1024; // > 20MB
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
     try {
-      if (isLargeFile) {
-        // TUS Chunked Upload
-        const { uploadFileToSupabaseResumable } = await import('@/lib/upload');
-        const fileName = await uploadFileToSupabaseResumable(file, "uploads", (p) => {
-          setProgress(Math.floor(p / 2));
-        });
+      // 1. Upload file to Supabase Storage
+      const { uploadFileToSupabaseResumable } = await import('@/lib/upload');
+      
+      const fileRecord = await uploadFileToSupabaseResumable(file, "uploads", (p) => {
+        // Dedicate 0-50% progress for upload
+        setProgress(Math.floor(p / 2));
+      });
 
-        let simProgress = 50;
-        const simInterval = setInterval(() => {
-          simProgress += 10;
-          setProgress(simProgress);
-          if (simProgress >= 90) clearInterval(simInterval);
-        }, 1000);
-
-        await new Promise(r => setTimeout(r, 4000));
-        clearInterval(simInterval);
-        
-        setProgress(100);
-        setResultUrl("#"); 
-      } else {
-        const interval = setInterval(() => {
-          setProgress((p) => {
-            if (p >= 90) {
-              clearInterval(interval);
-              return 90;
-            }
-            return p + 10;
-          });
-        }, 200);
-
-        const formData = new FormData();
-        formData.append("file", file);
-        
-        if (!isWatermark && !isExcelTemplate) {
-          formData.append("format", targetFormat);
-        } else if (isExcelTemplate) {
-          formData.append("format", "xlsx"); // mock extracting to template
-        }
-
-        const res = await fetch(endpoint, {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!res.ok) {
-          throw new Error(await res.text());
-        }
-
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        setResultUrl(url);
-        setProgress(100);
-        clearInterval(interval);
+      if (!fileRecord || !fileRecord.id) {
+        throw new Error("Failed to upload file to storage");
       }
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || "An error occurred during processing.");
-      setProgress(0);
-    } finally {
+
+      // 2. Create Job in FastAPI Backend
+      const res = await fetch(`${apiUrl}/api/jobs?file_id=${fileRecord.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tool: activeToolTitle,
+          target_format: targetFormat || null,
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.detail || "Failed to start job");
+      }
+
+      const jobData = await res.json();
+      const jobId = jobData.job_id;
+
+      // 3. Poll for Job Status
+      let simProgress = 50;
+      const pollInterval = setInterval(async () => {
+        // Increase progress bar smoothly up to 90%
+        if (simProgress < 90) {
+          simProgress += 5;
+          setProgress(simProgress);
+        }
+
+        try {
+          // Fetch job status from Supabase
+          const { createBrowserClient } = await import('@/lib/supabase/client');
+          const supabase = createBrowserClient();
+          const { data, error } = await supabase.from("processing_jobs").select("*, result_file:files!processing_jobs_result_file_id_fkey(*)").eq("id", jobId).single();
+          
+          if (data) {
+            if (data.status === "COMPLETED") {
+              clearInterval(pollInterval);
+              setProgress(100);
+              
+              if (data.result_file?.storage_key) {
+                const { data: urlData } = supabase.storage.from("results").getPublicUrl(data.result_file.storage_key);
+                setResultUrl(urlData.publicUrl);
+              }
+              setIsProcessing(false);
+            } else if (data.status === "FAILED") {
+              clearInterval(pollInterval);
+              setError(data.error_message || "Processing failed");
+              setIsProcessing(false);
+            }
+          }
+        } catch (e) {
+          console.error("Polling error", e);
+        }
+      }, 3000);
+
+    } catch (e: any) {
+      setError(e.message || "An unexpected error occurred.");
       setIsProcessing(false);
     }
   };
