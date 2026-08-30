@@ -816,7 +816,7 @@ export default function Home() {
                         <motion.div 
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="flex flex-col sm:flex-row items-center gap-4 bg-slate-500/5 p-4 rounded-xl border border-slate-500/10"
+                          className="flex flex-col sm:flex-row items-end gap-4 bg-slate-500/5 p-4 rounded-xl border border-slate-500/10"
                         >
                           {view === "AUDIO_CONVERTER" && (
                             <div className="flex-1 w-full flex items-center gap-4">
