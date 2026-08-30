@@ -68,6 +68,9 @@ export default function Dashboard() {
             <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Current Plan</p>
             <div className="flex items-center gap-2">
               <span className="text-xl font-bold text-slate-900">Free Tier</span>
+              <Button onClick={() => router.push("/admin")} variant="ghost" size="sm" className="ml-2 text-slate-500 hover:text-slate-800">
+                Admin
+              </Button>
               <Button onClick={() => router.push("/pricing")} variant="outline" size="sm" className="ml-2 text-purple-600 border-purple-200 hover:bg-purple-50">
                 Upgrade
               </Button>
