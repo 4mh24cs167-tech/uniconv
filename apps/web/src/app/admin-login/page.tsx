@@ -32,7 +32,7 @@ export default function AdminLoginPage() {
       setError(error.message);
       setLoading(false);
     } else {
-      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "admin@uniconv.com";
+      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "4mh24cs167@gmail.com";
       if (data.user?.email === adminEmail) {
         router.push("/admin");
       } else {
@@ -68,7 +68,7 @@ export default function AdminLoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-purple-500 transition-colors"
-              placeholder="admin@uniconv.com"
+              placeholder="4mh24cs167@gmail.com"
             />
           </div>
           <div>
