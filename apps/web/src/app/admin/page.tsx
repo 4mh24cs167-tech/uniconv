@@ -233,7 +233,10 @@ export default function AdminPanel() {
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          onClick={() => handleUpdatePlan(user.id, "Pro")}
+                          onClick={() => {
+                            const plan = window.prompt("Enter plan name (Free, Pro, Premium):", "Premium");
+                            if (plan) handleUpdatePlan(user.id, plan);
+                          }}
                           className="text-slate-400 hover:text-purple-600 opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           <Edit2 className="w-4 h-4 mr-2" /> Upgrade
