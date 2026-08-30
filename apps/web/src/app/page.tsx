@@ -345,6 +345,13 @@ export default function Home() {
                 />
                 <ToolCard 
                   isPremium={isPremium}
+                  title="Extract Text (OCR)" 
+                  description="Scan images or PDFs and use A.I. to extract editable text files instantly."
+                  icon={<FileText className="w-10 h-10 text-purple-500" />}
+                  onClick={() => { setTargetFormat("txt"); navigateTo("UNIVERSAL_CONVERTER", "Extract Text (OCR)"); }}
+                />
+                <ToolCard 
+                  isPremium={isPremium}
                   title="Watermark Remover" 
                   description="Automatically detect and remove watermarks from images or videos."
                   icon={<Eraser className="w-10 h-10" />}

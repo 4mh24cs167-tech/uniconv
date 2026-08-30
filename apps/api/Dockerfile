@@ -4,12 +4,13 @@ FROM python:3.11-slim-bookworm
 # Set the working directory inside the container
 WORKDIR /app
 
-# Install system dependencies: ffmpeg (for video/audio), libreoffice (for office to pdf), and libgl1 (for OpenCV)
+# Install system dependencies: ffmpeg (for video/audio), libreoffice (for office to pdf), libgl1 (for OpenCV), and tesseract-ocr (for OCR text extraction)
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     libreoffice \
     libgl1 \
     libglib2.0-0 \
+    tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the requirements file into the container

@@ -333,6 +333,10 @@ async def process_document_job(job_id: str):
                 success = PDFService.pdf_to_pptx(input_paths[0], output_path)
                 output_filename = f"processed_{job['id']}.pptx"
                 output_path = os.path.join(temp_dir, output_filename)
+            elif tool == "Extract Text (OCR)":
+                success = PDFService.extract_text_ocr(input_paths[0], output_path)
+                output_filename = f"processed_{job['id']}.txt"
+                output_path = os.path.join(temp_dir, output_filename)
             elif tool == "PDF to JPG":
                 out_files = PDFService.pdf_to_jpg(input_paths[0], temp_dir)
                 if out_files:

@@ -216,3 +216,45 @@ class PDFService:
         except Exception as e:
             print(f"Error converting PDF to JPG: {e}")
             return []
+
+    @staticmethod
+    def extract_text_ocr(input_path: str, output_path: str) -> bool:
+        """
+        Uses Tesseract OCR to extract text from an image or a PDF.
+        """
+        try:
+            import pytesseract
+            from PIL import Image
+            import fitz  # PyMuPDF
+            import os
+            
+            ext = os.path.splitext(input_path)[1].lower()
+            text_result = ""
+            
+            if ext == ".pdf":
+                # Convert PDF pages to images first
+                doc = fitz.open(input_path)
+                for page_num in range(len(doc)):
+                    page = doc.load_page(page_num)
+                    # High res for better OCR
+                    pix = page.get_pixmap(matrix=fitz.Matrix(3, 3)) 
+                    # Convert to PIL Image
+                    img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                    text_result += pytesseract.image_to_string(img) + "\n\n--- Page Break ---\n\n"
+                doc.close()
+            else:
+                # Assume it's an image
+                img = Image.open(input_path)
+                text_result = pytesseract.image_to_string(img)
+                
+            # Write text to output .txt file
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(text_result)
+                
+            return True
+        except ImportError:
+            print("pytesseract or PyMuPDF or PIL not installed.")
+            return False
+        except Exception as e:
+            print(f"Error during OCR extraction: {e}")
+            return False
