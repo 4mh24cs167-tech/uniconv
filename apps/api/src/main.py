@@ -417,8 +417,9 @@ async def process_document_job(job_id: str):
                 ext = os.path.splitext(input_paths[0])[1] or ".jpg"
                 output_filename = f"cleaned_{job['id']}{ext}"
                 output_path = os.path.join(temp_dir, output_filename)
+                position = job.get("configuration", {}).get("position", "bottom_right")
                 from src.services.media_service import MediaService
-                success = MediaService.remove_watermark(input_paths[0], output_path)
+                success = MediaService.remove_watermark(input_paths[0], output_path, position)
             elif tool in ["Word to PDF", "Excel to PDF", "PowerPoint to PDF"]:
                 output_filename = f"processed_{job['id']}.pdf"
                 output_path = os.path.join(temp_dir, output_filename)

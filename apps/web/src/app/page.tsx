@@ -32,6 +32,9 @@ export default function Home() {
   const [secureTool, setSecureTool] = useState<string>("password");
   const [secureConfig, setSecureConfig] = useState<any>({});
 
+  // Watermark Remover state
+  const [watermarkPos, setWatermarkPos] = useState<string>("bottom_right");
+
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -168,6 +171,8 @@ export default function Home() {
         configuration = secureConfig;
       } else if (activeToolTitle === "Split PDF") {
         configuration = { split_page: splitPage };
+      } else if (view === "WATERMARK_REMOVER") {
+        configuration = { position: watermarkPos };
       }
 
       // 2. Create Job in FastAPI Backend
@@ -840,6 +845,23 @@ export default function Home() {
                                   ))}
                                 </select>
                               </div>
+                            </div>
+                          )}
+
+                          {view === "WATERMARK_REMOVER" && (
+                            <div className="flex-1 w-full">
+                              <Label className="text-xs mb-1 block">Watermark Position</Label>
+                              <select 
+                                value={watermarkPos} 
+                                onChange={(e) => setWatermarkPos(e.target.value)}
+                                className={clsx("w-full rounded-md border px-3 py-2 text-sm", isPremium ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200")}
+                              >
+                                <option value="top_left">Top Left</option>
+                                <option value="top_right">Top Right</option>
+                                <option value="center">Center</option>
+                                <option value="bottom_left">Bottom Left</option>
+                                <option value="bottom_right">Bottom Right</option>
+                              </select>
                             </div>
                           )}
 

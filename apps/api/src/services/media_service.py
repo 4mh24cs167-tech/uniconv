@@ -20,18 +20,30 @@ class MediaService:
             return False
 
     @staticmethod
-    def remove_watermark(input_path: str, output_path: str) -> bool:
+    def remove_watermark(input_path: str, output_path: str, position: str = "bottom_right") -> bool:
         """
         Removes watermark. Uses OpenCV inpainting for images, and FFmpeg delogo for videos.
         """
         try:
             ext = os.path.splitext(input_path)[1].lower()
             if ext in ['.mp4', '.mov', '.avi', '.mkv', '.webm']:
-                # Video: Use FFmpeg delogo (assuming bottom right corner)
-                # delogo=x=W-200:y=H-100:w=200:h=100
+                # Video: Use FFmpeg delogo
+                # Calculate x, y based on position
+                # W=iw, H=ih, w=iw*0.25, h=ih*0.15
+                if position == "top_left":
+                    vf = "delogo=x=0:y=0:w=iw*0.25:h=ih*0.15"
+                elif position == "top_right":
+                    vf = "delogo=x=iw-iw*0.25:y=0:w=iw*0.25:h=ih*0.15"
+                elif position == "bottom_left":
+                    vf = "delogo=x=0:y=ih-ih*0.15:w=iw*0.25:h=ih*0.15"
+                elif position == "center":
+                    vf = "delogo=x=iw/2-iw*0.125:y=ih/2-ih*0.075:w=iw*0.25:h=ih*0.15"
+                else: # bottom_right
+                    vf = "delogo=x=iw-iw*0.25:y=ih-ih*0.15:w=iw*0.25:h=ih*0.15"
+                    
                 command = [
                     "ffmpeg", "-y", "-i", input_path,
-                    "-vf", "delogo=x=iw-iw*0.2:y=ih-ih*0.1:w=iw*0.2:h=ih*0.1",
+                    "-vf", vf,
                     "-c:a", "copy",
                     output_path
                 ]
@@ -48,9 +60,21 @@ class MediaService:
                 h, w = img.shape[:2]
                 mask = np.zeros((h, w), dtype=np.uint8)
                 
-                mask_h = int(h * 0.10)
-                mask_w = int(w * 0.20)
-                mask[h - mask_h:, w - mask_w:] = 255
+                mask_h = int(h * 0.15)
+                mask_w = int(w * 0.25)
+                
+                if position == "top_left":
+                    mask[0:mask_h, 0:mask_w] = 255
+                elif position == "top_right":
+                    mask[0:mask_h, w - mask_w:] = 255
+                elif position == "bottom_left":
+                    mask[h - mask_h:, 0:mask_w] = 255
+                elif position == "center":
+                    y1 = int(h/2 - mask_h/2)
+                    x1 = int(w/2 - mask_w/2)
+                    mask[y1:y1+mask_h, x1:x1+mask_w] = 255
+                else: # bottom_right
+                    mask[h - mask_h:, w - mask_w:] = 255
                 
                 result = cv2.inpaint(img, mask, 3, cv2.INPAINT_TELEA)
                 cv2.imwrite(output_path, result)
