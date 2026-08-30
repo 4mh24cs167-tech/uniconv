@@ -265,17 +265,17 @@ async def process_document_job(job_id: str):
     4. Uploads result to Storage
     5. Updates job status to COMPLETED
     """
-    import asyncio
-    import os
-    import tempfile
-    from services.pdf_service import PDFService
-    
-    print(f"Starting processing for job {job_id}")
-    
-    # Update status to PROCESSING
-    supabase.table("processing_jobs").update({"status": "PROCESSING"}).eq("id", job_id).execute()
-    
     try:
+        import asyncio
+        import os
+        import tempfile
+        from src.services.pdf_service import PDFService
+        
+        print(f"Starting processing for job {job_id}")
+        
+        # Update status to PROCESSING
+        supabase.table("processing_jobs").update({"status": "PROCESSING"}).eq("id", job_id).execute()
+        
         # 1. Fetch Job and Input Files Metadata
         job_res = supabase.table("processing_jobs").select("*").eq("id", job_id).single().execute()
         job = job_res.data
@@ -315,7 +315,7 @@ async def process_document_job(job_id: str):
                     shutil.copy(out_files[0], output_path)
                     success = True
             elif tool == "Compress JPG":
-                from services.image_service import ImageService
+                from src.services.image_service import ImageService
                 success = ImageService.compress_jpg(input_paths[0], output_path, quality=50)
                 output_filename = f"processed_{job['id']}.jpg"
                 output_path = os.path.join(temp_dir, output_filename) # update path with right ext
@@ -346,24 +346,24 @@ async def process_document_job(job_id: str):
                     shutil.copy(out_files[0], output_path)
                     success = True
             elif tool == "JPG to PDF":
-                from services.image_service import ImageService
+                from src.services.image_service import ImageService
                 success = ImageService.jpg_to_pdf(input_paths, output_path)
                 output_filename = f"processed_{job['id']}.pdf"
                 output_path = os.path.join(temp_dir, output_filename)
             elif tool == "Extract Audio":
-                from services.media_service import MediaService
+                from src.services.media_service import MediaService
                 output_filename = f"processed_{job['id']}.mp3"
                 output_path = os.path.join(temp_dir, output_filename)
                 success = MediaService.extract_audio(input_paths[0], output_path)
             elif tool == "Watermark Remover":
-                from services.media_service import MediaService
+                from src.services.media_service import MediaService
                 # Keep same extension for output
                 ext = os.path.splitext(input_paths[0])[1] or ".jpg"
                 output_filename = f"cleaned_{job['id']}{ext}"
                 output_path = os.path.join(temp_dir, output_filename)
                 success = MediaService.remove_watermark(input_paths[0], output_path)
             elif tool in ["Word to PDF", "Excel to PDF", "PowerPoint to PDF"]:
-                from services.media_service import MediaService
+                from src.services.media_service import MediaService
                 output_filename = f"processed_{job['id']}.pdf"
                 output_path = os.path.join(temp_dir, output_filename)
                 success = MediaService.office_to_pdf(input_paths[0], output_path)
@@ -424,7 +424,7 @@ def notify_upgrade(req: NotifyRequest):
     """
     Sends an upgrade confirmation email to the user.
     """
-    from services.email_service import EmailService
+    from src.services.email_service import EmailService
     success = EmailService.send_upgrade_email(req.user_email, req.plan_name)
     if success:
         return {"status": "success", "message": "Email sent"}
