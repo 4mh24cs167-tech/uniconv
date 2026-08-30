@@ -38,8 +38,9 @@ export default function Home() {
           setUserPlan("premium");
         } else {
           const { data } = await supabase.from("users").select("plan:plans(name)").eq("id", session.user.id).single();
-          if (data?.plan?.name) {
-            const pName = data.plan.name.toLowerCase();
+          const planData = data?.plan as any;
+          if (planData?.name) {
+            const pName = String(planData.name).toLowerCase();
             if (pName === "pro" || pName === "premium") {
               setIsPremium(true);
             }
