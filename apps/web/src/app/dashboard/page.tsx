@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
-import { FileText, Download, Clock, CheckCircle2, XCircle, Loader2, ArrowLeft, Zap } from "lucide-react";
+import { FileText, Download, Clock, CheckCircle2, XCircle, Loader2, ArrowLeft, Zap, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { clsx } from "clsx";
@@ -19,6 +19,7 @@ export default function Dashboard() {
   );
 
   const [plan, setPlan] = useState<string>("free");
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchJobsAndPlan = async () => {
@@ -28,16 +29,23 @@ export default function Dashboard() {
         return;
       }
       setSessionToken(session.access_token);
+      setUserEmail(session.user.email || null);
 
-      // Fetch user's plan
-      const { data: userData } = await supabase
-        .from("users")
-        .select("plan")
-        .eq("id", session.user.id)
-        .single();
-        
-      if (userData?.plan) {
-        setPlan(userData.plan);
+      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "4mh24cs167@gmail.com";
+      if (session.user.email === adminEmail) {
+        setPlan("premium");
+      } else {
+        // Fetch user's plan
+        const { data: userData } = await supabase
+          .from("users")
+          .select("plan:plans(name)")
+          .eq("id", session.user.id)
+          .single();
+          
+        const pData = userData?.plan as any;
+        if (pData?.name) {
+          setPlan(String(pData.name).toLowerCase());
+        }
       }
 
       // Fetch jobs with their result file data
@@ -95,16 +103,29 @@ export default function Dashboard() {
             <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Dashboard</h1>
             <p className="text-slate-500 mt-2">Manage your recent conversions and files.</p>
           </div>
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Current Plan</p>
-            <div className="flex items-center gap-2">
-              <span className={clsx(
-                "text-xl font-bold uppercase",
-                plan === "premium" ? "text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600" :
-                plan === "pro" ? "text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-600" :
-                "text-slate-900"
-              )}>
-                {plan} Tier
+          <div className="flex flex-col items-end gap-4">
+            <div className="flex items-center gap-4 text-sm font-medium text-slate-500">
+              <span className="bg-slate-200/50 px-3 py-1 rounded-full">{userEmail}</span>
+              <button 
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  router.push("/");
+                }}
+                className="flex items-center text-red-500 hover:text-red-700 transition-colors"
+              >
+                <LogOut className="w-4 h-4 mr-1" /> Log out
+              </button>
+            </div>
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 min-w-[200px]">
+              <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Current Plan</p>
+              <div className="flex items-center gap-2">
+                <span className={clsx(
+                  "text-xl font-bold uppercase",
+                  plan === "premium" ? "text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600" :
+                  plan === "pro" ? "text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-600" :
+                  "text-slate-900"
+                )}>
+                  {plan} Tier
               </span>
               <Button onClick={() => router.push("/admin")} variant="ghost" size="sm" className="ml-2 text-slate-500 hover:text-slate-800">
                 Admin
