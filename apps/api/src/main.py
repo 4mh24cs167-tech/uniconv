@@ -201,6 +201,15 @@ async def process_document_job(job_id: str):
                 output_path = os.path.join(temp_dir, output_filename) # update path with right ext
             elif tool == "Merge PDF":
                 success = PDFService.merge_pdfs(input_paths, output_path)
+            elif tool == "PDF to Word":
+                success = PDFService.pdf_to_word(input_paths[0], output_path)
+                output_filename = f"processed_{job['id']}.docx"
+                output_path = os.path.join(temp_dir, output_filename)
+            elif tool == "JPG to PDF":
+                from services.image_service import ImageService
+                success = ImageService.jpg_to_pdf(input_paths, output_path)
+                output_filename = f"processed_{job['id']}.pdf"
+                output_path = os.path.join(temp_dir, output_filename)
             else:
                 import shutil
                 shutil.copy(input_paths[0], output_path)

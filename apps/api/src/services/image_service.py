@@ -27,3 +27,28 @@ class ImageService:
         except Exception as e:
             print(f"Error compressing JPG: {e}")
             return False
+            
+    @staticmethod
+    def jpg_to_pdf(input_paths: list[str], output_path: str) -> bool:
+        """
+        Converts multiple JPGs into a single PDF using Pillow.
+        """
+        try:
+            from PIL import Image
+            
+            image_list = []
+            for path in input_paths:
+                img = Image.open(path)
+                if img.mode in ("RGBA", "P"):
+                    img = img.convert("RGB")
+                image_list.append(img)
+                
+            if image_list:
+                image_list[0].save(output_path, "PDF", resolution=100.0, save_all=True, append_images=image_list[1:])
+            return True
+        except ImportError:
+            print("Pillow is not installed.")
+            return False
+        except Exception as e:
+            print(f"Error converting JPG to PDF: {e}")
+            return False
