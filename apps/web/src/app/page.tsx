@@ -17,8 +17,28 @@ type ViewState = "HUB" | "UNIVERSAL_CONVERTER" | "WATERMARK_REMOVER" | "PDF_TO_E
 
 export default function Home() {
   const [isPremium, setIsPremium] = useState(false);
+  const [userPlan, setUserPlan] = useState("free");
   const [view, setView] = useState<ViewState>("HUB");
   const [activeToolTitle, setActiveToolTitle] = useState<string>("");
+
+  useEffect(() => {
+    const fetchPlan = async () => {
+      const { createBrowserClient } = await import('@supabase/ssr');
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data } = await supabase.from("users").select("plan").eq("id", session.user.id).single();
+        if (data && (data.plan === "pro" || data.plan === "premium")) {
+          setIsPremium(true);
+          setUserPlan(data.plan);
+        }
+      }
+    };
+    fetchPlan();
+  }, []);
 
   // Shared state for the active tool
   const [files, setFiles] = useState<File[]>([]);
@@ -216,15 +236,6 @@ export default function Home() {
             )}>
               Log in
             </a>
-            <div className="flex items-center gap-2 border-l border-slate-300/50 pl-4">
-              <Switch id="premium-mode" checked={isPremium} onCheckedChange={setIsPremium} />
-              <Label htmlFor="premium-mode" className={clsx(
-                "text-sm font-semibold cursor-pointer",
-                isPremium ? "text-purple-400" : "text-slate-500"
-              )}>
-                Premium UI
-              </Label>
-            </div>
           </div>
         </div>
       </header>
@@ -348,7 +359,14 @@ export default function Home() {
                   title="Extract Text (OCR)" 
                   description="Scan images or PDFs and use A.I. to extract editable text files instantly."
                   icon={<FileText className="w-10 h-10 text-purple-500" />}
-                  onClick={() => { setTargetFormat("txt"); navigateTo("UNIVERSAL_CONVERTER", "Extract Text (OCR)"); }}
+                  onClick={() => { 
+                    if (userPlan === "pro" || userPlan === "premium") {
+                      setTargetFormat("txt"); navigateTo("UNIVERSAL_CONVERTER", "Extract Text (OCR)"); 
+                    } else {
+                      alert("Extract Text (OCR) is a Pro/Premium feature. Please upgrade your plan.");
+                      window.location.href = "/pricing";
+                    }
+                  }}
                 />
                 <ToolCard 
                   isPremium={isPremium}

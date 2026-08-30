@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, X } from "lucide-react";
+import { ArrowLeft, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { clsx } from "clsx";
 import { useRouter } from "next/navigation";
@@ -73,7 +73,10 @@ export default function PricingPage() {
     <>
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
       <div className="min-h-screen bg-slate-50 py-24 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto relative">
+          <Button variant="ghost" className="absolute -top-16 left-0 text-slate-500" onClick={() => router.push('/')}>
+            <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
+          </Button>
           <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight sm:text-5xl">
             Simple, transparent pricing
@@ -132,14 +135,15 @@ export default function PricingPage() {
                 "Unlimited Operations", 
                 "Priority Processing Speed", 
                 "Batch Processing (up to 50)",
-                "Basic Tools"
+                "Basic Tools",
+                "OCR Text Extraction"
               ].map((feature, i) => (
                 <li key={i} className="flex items-center text-slate-700">
                   <Check className="w-5 h-5 text-purple-500 mr-3 flex-shrink-0" />
                   {feature}
                 </li>
               ))}
-              {["OCR Text Extraction"].map((feature, i) => (
+              {["Custom Branding"].map((feature, i) => (
                 <li key={i} className="flex items-center text-slate-400">
                   <X className="w-5 h-5 text-slate-300 mr-3 flex-shrink-0" />
                   {feature}

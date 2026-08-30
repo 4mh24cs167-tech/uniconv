@@ -5,8 +5,9 @@ import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { FileText } from 'lucide-react';
+import { ArrowLeft, FileText } from 'lucide-react';
 import { clsx } from 'clsx';
+import { Button } from "@/components/ui/button";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -39,8 +40,11 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-2xl shadow-xl shadow-slate-200/50 w-full max-w-md border border-slate-100">
-        <div className="flex items-center justify-center mb-8 gap-3">
+      <div className="bg-white p-8 rounded-2xl shadow-xl shadow-slate-200/50 w-full max-w-md border border-slate-100 relative">
+        <Button variant="ghost" className="absolute top-4 left-4 text-slate-500" onClick={() => router.push('/')}>
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back
+        </Button>
+        <div className="flex items-center justify-center mb-8 mt-6 gap-3">
           <div className="p-3 bg-red-100 text-red-600 rounded-xl">
             <FileText className="w-8 h-8" />
           </div>
