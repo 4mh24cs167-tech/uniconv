@@ -23,11 +23,15 @@ export default function AdminPanel() {
     const checkAdminAndFetch = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        router.push("/login");
+        router.push("/admin-login");
         return;
       }
       
-      // In production, enforce this via RLS or backend admin flag
+      if (session.user.email !== "admin@uniconv.com") {
+        router.push("/admin-login");
+        return;
+      }
+      
       setAdminEmail(session.user.email || "");
 
       // Fetch users and their plans

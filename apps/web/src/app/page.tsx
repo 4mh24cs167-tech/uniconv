@@ -30,10 +30,15 @@ export default function Home() {
       );
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { data } = await supabase.from("users").select("plan").eq("id", session.user.id).single();
-        if (data && (data.plan === "pro" || data.plan === "premium")) {
+        if (session.user.email === "admin@uniconv.com") {
           setIsPremium(true);
-          setUserPlan(data.plan);
+          setUserPlan("premium");
+        } else {
+          const { data } = await supabase.from("users").select("plan").eq("id", session.user.id).single();
+          if (data && (data.plan === "pro" || data.plan === "premium")) {
+            setIsPremium(true);
+            setUserPlan(data.plan);
+          }
         }
       }
     };
