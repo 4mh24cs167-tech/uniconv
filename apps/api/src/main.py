@@ -25,6 +25,53 @@ key: str = os.getenv("SUPABASE_KEY", "")
 # For secure routes, we will verify the user's JWT from the request header.
 supabase: Client = create_client(url, key) if url and key else None
 
+# --- APScheduler Setup for Cleanup ---
+from apscheduler.schedulers.background import BackgroundScheduler
+from datetime import datetime, timedelta, timezone
+
+def cleanup_old_files():
+    """
+    Deletes files and jobs older than 24 hours from Supabase to save storage space.
+    """
+    try:
+        if not supabase:
+            return
+            
+        print("Running scheduled cleanup job for old files...")
+        threshold_date = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+        
+        # Find old files
+        old_files = supabase.table("files").select("id, storage_key").lt("created_at", threshold_date).execute()
+        
+        if old_files.data:
+            print(f"Found {len(old_files.data)} old files to delete.")
+            
+            # Delete from Storage buckets
+            for file in old_files.data:
+                key = file.get("storage_key")
+                if key:
+                    # Try to delete from both buckets since we don't track which one it's in here
+                    try:
+                        supabase.storage.from_("uploads").remove([key])
+                        supabase.storage.from_("results").remove([key])
+                    except Exception as e:
+                        print(f"Failed to delete storage key {key}: {e}")
+            
+            # Delete from DB
+            file_ids = [f["id"] for f in old_files.data]
+            # Batch delete in chunks of 50 if needed, but for simplicity:
+            supabase.table("files").delete().in_("id", file_ids).execute()
+            
+        print("Cleanup job finished.")
+    except Exception as e:
+        print(f"Error during cleanup job: {e}")
+
+# Start the scheduler when the app boots
+scheduler = BackgroundScheduler()
+scheduler.add_job(cleanup_old_files, 'interval', hours=12) # Run every 12 hours
+scheduler.start()
+# -----------------------------------
+
 @app.get("/")
 def read_root():
     return {"message": "Document Productivity API is running"}
