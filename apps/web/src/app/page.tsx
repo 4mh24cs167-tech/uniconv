@@ -18,6 +18,7 @@ type ViewState = "HUB" | "UNIVERSAL_CONVERTER" | "WATERMARK_REMOVER" | "PDF_TO_E
 export default function Home() {
   const [isPremium, setIsPremium] = useState(false);
   const [userPlan, setUserPlan] = useState("free");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [view, setView] = useState<ViewState>("HUB");
   const [activeToolTitle, setActiveToolTitle] = useState<string>("");
 
@@ -30,15 +31,19 @@ export default function Home() {
       );
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
+        setIsLoggedIn(true);
         const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "4mh24cs167@gmail.com";
         if (session.user.email === adminEmail) {
           setIsPremium(true);
           setUserPlan("premium");
         } else {
-          const { data } = await supabase.from("users").select("plan").eq("id", session.user.id).single();
-          if (data && (data.plan === "pro" || data.plan === "premium")) {
-            setIsPremium(true);
-            setUserPlan(data.plan);
+          const { data } = await supabase.from("users").select("plan:plans(name)").eq("id", session.user.id).single();
+          if (data?.plan?.name) {
+            const pName = data.plan.name.toLowerCase();
+            if (pName === "pro" || pName === "premium") {
+              setIsPremium(true);
+            }
+            setUserPlan(pName);
           }
         }
       }
@@ -236,11 +241,11 @@ export default function Home() {
             )}>
               Pricing
             </a>
-            <a href="/login" className={clsx(
+            <a href={isLoggedIn ? "/dashboard" : "/login"} className={clsx(
               "text-sm font-semibold transition-colors",
               isPremium ? "text-slate-300 hover:text-white" : "text-slate-600 hover:text-slate-900"
             )}>
-              Log in
+              {isLoggedIn ? "Dashboard" : "Log in"}
             </a>
           </div>
         </div>
