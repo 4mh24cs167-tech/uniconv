@@ -205,6 +205,22 @@ async def process_document_job(job_id: str):
                 success = PDFService.pdf_to_word(input_paths[0], output_path)
                 output_filename = f"processed_{job['id']}.docx"
                 output_path = os.path.join(temp_dir, output_filename)
+            elif tool == "PDF to Excel":
+                success = PDFService.pdf_to_excel(input_paths[0], output_path)
+                output_filename = f"processed_{job['id']}.xlsx"
+                output_path = os.path.join(temp_dir, output_filename)
+            elif tool == "PDF to PowerPoint":
+                success = PDFService.pdf_to_pptx(input_paths[0], output_path)
+                output_filename = f"processed_{job['id']}.pptx"
+                output_path = os.path.join(temp_dir, output_filename)
+            elif tool == "PDF to JPG":
+                out_files = PDFService.pdf_to_jpg(input_paths[0], temp_dir)
+                if out_files:
+                    import shutil
+                    output_filename = f"processed_{job['id']}.zip"
+                    output_path = os.path.join(temp_dir, output_filename)
+                    shutil.copy(out_files[0], output_path)
+                    success = True
             elif tool == "JPG to PDF":
                 from services.image_service import ImageService
                 success = ImageService.jpg_to_pdf(input_paths, output_path)
@@ -219,11 +235,16 @@ async def process_document_job(job_id: str):
                 raise Exception(f"Processing failed for tool: {tool}")
                 
             # 4. Upload Result to Supabase Storage
+            import mimetypes
+            content_type, _ = mimetypes.guess_type(output_filename)
+            if not content_type:
+                content_type = "application/octet-stream"
+                
             with open(output_path, "rb") as f:
                 upload_res = supabase.storage.from_("results").upload(
                     path=output_filename,
                     file=f,
-                    file_options={"content-type": "application/pdf"} # naive content type
+                    file_options={"content-type": content_type} 
                 )
                 
             # 5. Create Result File Record in DB
