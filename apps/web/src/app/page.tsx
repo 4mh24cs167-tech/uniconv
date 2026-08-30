@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, CheckCircle2, Download, Eraser, ArrowLeft, FileText, FileImage, FileSpreadsheet, FileArchive, Zap } from "lucide-react";
+import { AlertCircle, CheckCircle2, Download, Eraser, ArrowLeft, FileText, FileImage, FileSpreadsheet, FileArchive, Zap, Settings, Lock, Menu, X, UploadCloud } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import { PremiumGate } from "@/components/PremiumGate";
@@ -65,21 +65,48 @@ export default function Home() {
       // 1. Upload files to Supabase Storage
       const { uploadFileToSupabaseResumable } = await import('@/lib/upload');
       
-      const fileIds = [];
+      const fileIds: string[] = [];
       let totalUploaded = 0;
       
       for (const f of files) {
-        const fileRecord = await uploadFileToSupabaseResumable(f, "uploads", (p) => {
+        const fileRecordOrString = await uploadFileToSupabaseResumable(f, "uploads", (p) => {
           // Math to split the 50% progress among all files
           const baseProgress = (totalUploaded / files.length) * 50;
           const currentFileProgress = (p / 100) * (50 / files.length);
           setProgress(Math.floor(baseProgress + currentFileProgress));
         });
 
-        if (!fileRecord || !fileRecord.id) {
+        if (!fileRecordOrString) {
           throw new Error(`Failed to upload ${f.name}`);
         }
-        fileIds.push(fileRecord.id);
+        
+        // uploadFileToSupabaseResumable returns string (the filename/path)
+        // Wait, we need to create the file in DB to get an ID.
+        // The mock uploadFileToSupabaseResumable returns a string filename.
+        // So we need to insert it into DB if it doesn't return an object.
+        const { createBrowserClient } = await import('@supabase/ssr');
+        const supabase = createBrowserClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+        
+        const fileName = typeof fileRecordOrString === 'string' ? fileRecordOrString : (fileRecordOrString as any).id;
+        
+        // Get user if any
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        const fileRes = await supabase.table("files").insert({
+            user_id: session?.user?.id || null,
+            filename: f.name,
+            original_filename: f.name,
+            size_bytes: f.size,
+            storage_key: fileName
+        }).select().single();
+        
+        if (fileRes.data) {
+          fileIds.push(fileRes.data.id);
+        }
+        
         totalUploaded++;
       }
 
@@ -113,8 +140,12 @@ export default function Home() {
 
         try {
           // Fetch job status from Supabase
-          const { createBrowserClient } = await import('@/lib/supabase/client');
-          const supabase = createBrowserClient();
+          const { createBrowserClient } = await import('@supabase/ssr');
+          const supabase = createBrowserClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+          );
+          
           const { data, error } = await supabase.from("processing_jobs").select("*, result_file:files!processing_jobs_result_file_id_fkey(*)").eq("id", jobId).single();
           
           if (data) {
