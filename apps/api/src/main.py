@@ -277,7 +277,7 @@ async def process_document_job(job_id: str):
     
     try:
         # 1. Fetch Job and Input Files Metadata
-        job_res = supabase.table("processing_jobs").select("*, files:input_file_ids").eq("id", job_id).single().execute()
+        job_res = supabase.table("processing_jobs").select("*").eq("id", job_id).single().execute()
         job = job_res.data
         
         input_ids = job["input_file_ids"]

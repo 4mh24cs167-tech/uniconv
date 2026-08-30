@@ -178,15 +178,24 @@ export default function Home() {
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
           );
           
-          const { data, error } = await supabase.from("processing_jobs").select("*, result_file:files!processing_jobs_result_file_id_fkey(*)").eq("id", jobId).single();
+          const { data, error } = await supabase.from("processing_jobs").select("*, result_file:files(*)").eq("id", jobId).single();
           
+          if (error) {
+            console.error("Supabase polling error:", error);
+            // Don't kill polling immediately on transient errors, just log it.
+          }
+
           if (data) {
             if (data.status === "COMPLETED") {
               clearInterval(pollInterval);
               setProgress(100);
               
-              if (data.result_file?.storage_key) {
+              if (data.result_file && data.result_file.storage_key) {
                 const { data: urlData } = supabase.storage.from("results").getPublicUrl(data.result_file.storage_key);
+                setResultUrl(urlData.publicUrl);
+              } else if (data.result_file && Array.isArray(data.result_file) && data.result_file[0]?.storage_key) {
+                // In case it returns an array
+                const { data: urlData } = supabase.storage.from("results").getPublicUrl(data.result_file[0].storage_key);
                 setResultUrl(urlData.publicUrl);
               }
               setIsProcessing(false);
