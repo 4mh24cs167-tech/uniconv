@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { UploadZone } from "@/components/UploadZone";
 import { FormatPicker } from "@/components/FormatPicker";
 import { ToolCard } from "@/components/ToolCard";
@@ -21,6 +21,8 @@ export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [view, setView] = useState<ViewState>("HUB");
   const [activeToolTitle, setActiveToolTitle] = useState<string>("");
+  const [splitPage, setSplitPage] = useState<number>(1);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const fetchPlan = async () => {
@@ -149,7 +151,8 @@ export default function Home() {
         body: JSON.stringify({
           tool: activeToolTitle,
           target_format: targetFormat || null,
-          input_file_ids: fileIds
+          input_file_ids: fileIds,
+          configuration: activeToolTitle === "Split PDF" ? { split_page: splitPage } : undefined
         })
       });
 
@@ -163,10 +166,12 @@ export default function Home() {
 
       // 3. Poll for Job Status
       let simProgress = 50;
-      const pollInterval = setInterval(async () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      
+      pollIntervalRef.current = setInterval(async () => {
         // Increase progress bar smoothly up to 90%
         if (simProgress < 90) {
-          simProgress += 5;
+          simProgress += 10;
           setProgress(simProgress);
         }
 
@@ -187,7 +192,7 @@ export default function Home() {
 
           if (data) {
             if (data.status === "COMPLETED") {
-              clearInterval(pollInterval);
+              if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
               setProgress(100);
               
               if (data.result_file && data.result_file.storage_key) {
@@ -200,7 +205,7 @@ export default function Home() {
               }
               setIsProcessing(false);
             } else if (data.status === "FAILED") {
-              clearInterval(pollInterval);
+              if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
               setError(data.error_message || "Processing failed");
               setIsProcessing(false);
             }
@@ -474,6 +479,24 @@ export default function Home() {
                         isPremium={isPremium}
                         multiple={activeToolTitle === "Merge PDF"}
                         selectedFiles={files} 
+                        onFileRemove={(index) => {
+                          setFiles(prev => {
+                            const newFiles = [...prev];
+                            newFiles.splice(index, 1);
+                            if (newFiles.length === 0) {
+                              resetState(); 
+                            }
+                            return newFiles;
+                          });
+                        }}
+                        onCancel={() => {
+                          if (pollIntervalRef.current) {
+                            clearInterval(pollIntervalRef.current);
+                            pollIntervalRef.current = null;
+                          }
+                          setIsProcessing(false);
+                          setProgress(0);
+                        }}
                         onFileSelect={async (newFiles) => {
                           const isMerge = activeToolTitle === "Merge PDF";
                           const limitMB = isPremium ? Infinity : 350; 
@@ -520,7 +543,11 @@ export default function Home() {
                           animate={{ opacity: 1, y: 0 }}
                           className="flex flex-col sm:flex-row items-center gap-4 bg-slate-500/5 p-4 rounded-xl border border-slate-500/10"
                         >
-                          {view === "UNIVERSAL_CONVERTER" && !activeToolTitle?.startsWith("Compress") && (
+                          {view === "UNIVERSAL_CONVERTER" && 
+                           !activeToolTitle?.startsWith("Compress") && 
+                           !activeToolTitle?.includes("Merge") && 
+                           !activeToolTitle?.includes("Split") && 
+                           !activeToolTitle?.includes("to") && (
                             <div className="flex-1 w-full">
                               <FormatPicker 
                                 formats={availableFormats} 
@@ -534,9 +561,23 @@ export default function Home() {
                               )}
                             </div>
                           )}
+                          
+                          {activeToolTitle === "Split PDF" && (
+                            <div className="flex-1 w-full flex items-center gap-3 bg-white p-2 rounded-lg border">
+                              <span className="text-sm font-medium text-slate-700 pl-2">Split after page:</span>
+                              <input 
+                                type="number" 
+                                min="1" 
+                                value={splitPage}
+                                onChange={(e) => setSplitPage(parseInt(e.target.value) || 1)}
+                                className="w-20 p-2 border rounded-md text-sm outline-none focus:border-blue-500"
+                              />
+                            </div>
+                          )}
+
                           <Button
                             onClick={handleProcess}
-                            disabled={isProcessing || files.length === 0 || (view === "UNIVERSAL_CONVERTER" && !targetFormat && !activeToolTitle?.startsWith("Compress"))}
+                            disabled={isProcessing || files.length === 0}
                             size="lg"
                             className={clsx(
                               "w-full sm:w-auto min-w-[200px] h-14 text-lg font-bold shadow-lg transition-all hover:scale-105 active:scale-95",
@@ -552,6 +593,10 @@ export default function Home() {
                               <><FileSpreadsheet className="w-5 h-5 mr-2" /> Extract to Excel</>
                             ) : activeToolTitle?.startsWith("Compress") ? (
                               "Compress Now"
+                            ) : activeToolTitle === "Merge PDF" ? (
+                              "Merge Now"
+                            ) : activeToolTitle === "Split PDF" ? (
+                              "Split Now"
                             ) : (
                               "Convert Now"
                             )}

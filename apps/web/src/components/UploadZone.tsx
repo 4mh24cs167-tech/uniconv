@@ -10,6 +10,8 @@ export interface UploadZoneProps {
   onFileSelect: (files: File[]) => void;
   selectedFiles: File[];
   onClear: () => void;
+  onFileRemove?: (index: number) => void;
+  onCancel?: () => void;
   progress?: number;
   converting?: boolean;
   isPremium?: boolean;
@@ -20,6 +22,8 @@ export function UploadZone({
   onFileSelect, 
   selectedFiles, 
   onClear,
+  onFileRemove,
+  onCancel,
   progress = 0,
   converting = false,
   isPremium = false,
@@ -125,10 +129,16 @@ export function UploadZone({
                   <button
                     onClick={(e) => {
                       e.preventDefault();
-                      const newFiles = [...selectedFiles];
-                      newFiles.splice(i, 1);
-                      if (newFiles.length === 0) onClear();
-                      else onFileSelect(newFiles);
+                      e.stopPropagation();
+                      if (onFileRemove) {
+                        onFileRemove(i);
+                      } else {
+                        // Fallback logic
+                        const newFiles = [...selectedFiles];
+                        newFiles.splice(i, 1);
+                        if (newFiles.length === 0) onClear();
+                        else onFileSelect(newFiles);
+                      }
                     }}
                     className={clsx(
                       "p-2 rounded-full transition-colors flex-shrink-0",
@@ -143,9 +153,19 @@ export function UploadZone({
             
             {converting && (
               <div className="p-5 bg-slate-50 border-t border-slate-100">
-                <div className={clsx("flex justify-between text-sm font-bold mb-3", isPremium ? "text-slate-300" : "text-slate-700")}>
+                <div className={clsx("flex justify-between items-center mb-3 text-sm font-bold", isPremium ? "text-slate-300" : "text-slate-700")}>
                   <span>Processing...</span>
-                  <span>{progress}%</span>
+                  <div className="flex items-center gap-4">
+                    <span>{progress}%</span>
+                    {onCancel && (
+                      <button 
+                        onClick={onCancel}
+                        className="text-xs font-semibold text-red-500 hover:text-red-700 hover:underline transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <Progress value={progress} className={clsx("h-2.5", isPremium ? "bg-slate-800" : "bg-slate-200")} />
               </div>

@@ -307,12 +307,29 @@ async def process_document_job(job_id: str):
                 target_size = job.get("configuration", {}).get("target_size_mb")
                 success = PDFService.compress_pdf(input_paths[0], output_path, target_size)
             elif tool == "Split PDF":
-                output_filename = f"processed_{job['id']}.pdf"
+                output_filename = f"processed_{job['id']}.zip"
                 output_path = os.path.join(temp_dir, output_filename)
-                out_files = PDFService.split_pdf(input_paths[0], temp_dir, ranges=[(1, 1)])
+                
+                split_page = job.get("configuration", {})
+                if not split_page:
+                    split_page = {}
+                split_page_num = split_page.get("split_page", 1)
+                
+                from PyPDF2 import PdfReader
+                reader = PdfReader(input_paths[0])
+                total_pages = len(reader.pages)
+                
+                ranges = [(1, split_page_num)]
+                if total_pages > split_page_num:
+                    ranges.append((split_page_num + 1, total_pages))
+                    
+                out_files = PDFService.split_pdf(input_paths[0], temp_dir, ranges=ranges)
+                
                 if out_files:
-                    import shutil
-                    shutil.copy(out_files[0], output_path)
+                    import zipfile
+                    with zipfile.ZipFile(output_path, 'w') as zipf:
+                        for idx, file in enumerate(out_files):
+                            zipf.write(file, f"part_{idx+1}.pdf")
                     success = True
             elif tool == "Compress JPG":
                 output_filename = f"processed_{job['id']}.jpg"
