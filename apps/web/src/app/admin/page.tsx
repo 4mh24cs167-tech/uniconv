@@ -27,7 +27,8 @@ export default function AdminPanel() {
         return;
       }
       
-      if (session.user.email !== "admin@uniconv.com") {
+      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "admin@uniconv.com";
+      if (session.user.email !== adminEmail) {
         router.push("/admin-login");
         return;
       }

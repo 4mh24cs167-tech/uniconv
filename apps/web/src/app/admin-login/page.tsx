@@ -32,7 +32,8 @@ export default function AdminLoginPage() {
       setError(error.message);
       setLoading(false);
     } else {
-      if (data.user?.email === "admin@uniconv.com") {
+      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "admin@uniconv.com";
+      if (data.user?.email === adminEmail) {
         router.push("/admin");
       } else {
         setError("Unauthorized. This portal is for administrators only.");

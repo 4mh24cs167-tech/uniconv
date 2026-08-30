@@ -30,7 +30,8 @@ export default function Home() {
       );
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        if (session.user.email === "admin@uniconv.com") {
+        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "admin@uniconv.com";
+        if (session.user.email === adminEmail) {
           setIsPremium(true);
           setUserPlan("premium");
         } else {
