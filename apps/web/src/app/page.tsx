@@ -191,11 +191,11 @@ export default function Home() {
               setProgress(100);
               
               if (data.result_file && data.result_file.storage_key) {
-                const { data: urlData } = supabase.storage.from("results").getPublicUrl(data.result_file.storage_key);
+                const { data: urlData } = supabase.storage.from("results").getPublicUrl(data.result_file.storage_key, { download: true });
                 setResultUrl(urlData.publicUrl);
               } else if (data.result_file && Array.isArray(data.result_file) && data.result_file[0]?.storage_key) {
                 // In case it returns an array
-                const { data: urlData } = supabase.storage.from("results").getPublicUrl(data.result_file[0].storage_key);
+                const { data: urlData } = supabase.storage.from("results").getPublicUrl(data.result_file[0].storage_key, { download: true });
                 setResultUrl(urlData.publicUrl);
               }
               setIsProcessing(false);
