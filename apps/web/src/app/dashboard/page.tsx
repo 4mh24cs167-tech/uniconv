@@ -3,14 +3,16 @@
 import { useEffect, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
-import { FileText, Download, Clock, CheckCircle2, XCircle, Loader2, ArrowLeft } from "lucide-react";
+import { FileText, Download, Clock, CheckCircle2, XCircle, Loader2, ArrowLeft, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { clsx } from "clsx";
 
 export default function Dashboard() {
   const router = useRouter();
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -25,6 +27,7 @@ export default function Dashboard() {
         router.push("/login");
         return;
       }
+      setSessionToken(session.access_token);
 
       // Fetch user's plan
       const { data: userData } = await supabase
@@ -191,6 +194,58 @@ export default function Dashboard() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Developer API Section */}
+        <div className="bg-slate-900 rounded-2xl shadow-xl border border-slate-800 overflow-hidden">
+          <div className="px-6 py-5 border-b border-slate-800 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <Zap className="w-5 h-5 text-purple-400" />
+              Developer API Access
+            </h2>
+          </div>
+          <div className="p-6 md:p-8 space-y-6">
+            <p className="text-slate-400">
+              Integrate UniConv's powerful document processing engine directly into your own applications using our REST API. 
+              Authenticating is easy—just pass your Bearer token.
+            </p>
+            
+            <div className="space-y-2">
+              <Label className="text-slate-300 font-semibold">Your API Token (Session JWT)</Label>
+              <div className="flex items-center gap-3">
+                <input 
+                  type="text" 
+                  readOnly 
+                  value={sessionToken || "Loading..."} 
+                  className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-slate-300 font-mono text-sm focus:outline-none"
+                  onFocus={(e) => e.target.select()}
+                />
+                <Button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(sessionToken || "");
+                    alert("API Token copied to clipboard!");
+                  }}
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  Copy
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-4">
+              <Label className="text-slate-300 font-semibold">Example cURL Request (Merge PDF)</Label>
+              <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 font-mono text-sm text-green-400 overflow-x-auto whitespace-pre">
+{`curl -X POST https://uniconv.onrender.com/api/jobs \\
+  -H "Authorization: Bearer YOUR_API_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "tool": "Merge PDF",
+    "target_format": "pdf",
+    "input_file_ids": ["supabase-storage-key-1.pdf", "supabase-storage-key-2.pdf"]
+  }'`}
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>
