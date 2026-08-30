@@ -586,14 +586,19 @@ export default function Home() {
                               : view === "PDF_TO_EXCEL"
                               ? `template_${files[0]?.name.split('.')[0] || 'data'}.xlsx`
                               : `converted.${targetFormat || 'pdf'}`;
+                            document.body.appendChild(a);
                             a.click();
+                            document.body.removeChild(a);
                           }}
                           className={clsx(
-                            "gap-3 font-bold text-lg px-12 py-8 rounded-xl shadow-xl",
-                            isPremium ? "bg-gradient-to-r from-purple-500 to-blue-500 hover:opacity-90 text-white border-0 shadow-purple-500/25" : ""
+                            "h-14 px-8 text-lg font-bold shadow-lg transition-all hover:scale-105 active:scale-95",
+                            isPremium 
+                              ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white shadow-green-500/25" 
+                              : "bg-green-600 hover:bg-green-500 text-white"
                           )}
                         >
-                          <Download className="w-6 h-6" /> Download File
+                          <Download className="w-6 h-6 mr-3" />
+                          Download Result
                         </Button>
                         <Button 
                           variant="ghost" 
