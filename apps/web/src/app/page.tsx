@@ -520,7 +520,7 @@ export default function Home() {
                           animate={{ opacity: 1, y: 0 }}
                           className="flex flex-col sm:flex-row items-center gap-4 bg-slate-500/5 p-4 rounded-xl border border-slate-500/10"
                         >
-                          {view === "UNIVERSAL_CONVERTER" && (
+                          {view === "UNIVERSAL_CONVERTER" && !activeToolTitle?.startsWith("Compress") && (
                             <div className="flex-1 w-full">
                               <FormatPicker 
                                 formats={availableFormats} 
@@ -536,7 +536,7 @@ export default function Home() {
                           )}
                           <Button
                             onClick={handleProcess}
-                            disabled={isProcessing || files.length === 0 || (view === "UNIVERSAL_CONVERTER" && !targetFormat)}
+                            disabled={isProcessing || files.length === 0 || (view === "UNIVERSAL_CONVERTER" && !targetFormat && !activeToolTitle?.startsWith("Compress"))}
                             size="lg"
                             className={clsx(
                               "w-full sm:w-auto min-w-[200px] h-14 text-lg font-bold shadow-lg transition-all hover:scale-105 active:scale-95",
@@ -550,6 +550,8 @@ export default function Home() {
                               <><Eraser className="w-5 h-5 mr-2" /> Clean File</>
                             ) : view === "PDF_TO_EXCEL" ? (
                               <><FileSpreadsheet className="w-5 h-5 mr-2" /> Extract to Excel</>
+                            ) : activeToolTitle?.startsWith("Compress") ? (
+                              "Compress Now"
                             ) : (
                               "Convert Now"
                             )}
