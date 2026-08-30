@@ -16,12 +16,25 @@ export default function Dashboard() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
+  const [plan, setPlan] = useState<string>("free");
+
   useEffect(() => {
-    const fetchJobs = async () => {
+    const fetchJobsAndPlan = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         router.push("/login");
         return;
+      }
+
+      // Fetch user's plan
+      const { data: userData } = await supabase
+        .from("users")
+        .select("plan")
+        .eq("id", session.user.id)
+        .single();
+        
+      if (userData?.plan) {
+        setPlan(userData.plan);
       }
 
       // Fetch jobs with their result file data
@@ -41,7 +54,7 @@ export default function Dashboard() {
       setLoading(false);
     };
 
-    fetchJobs();
+    fetchJobsAndPlan();
   }, [router, supabase]);
 
   const handleDownload = async (file: any) => {
@@ -49,6 +62,21 @@ export default function Dashboard() {
     const { data } = supabase.storage.from("results").getPublicUrl(file.storage_key);
     if (data?.publicUrl) {
       window.open(data.publicUrl, "_blank");
+    }
+  };
+
+  const handleDelete = async (jobId: string, resultFileId: string | null) => {
+    if (!confirm("Are you sure you want to delete this record?")) return;
+    
+    // Optimistic UI update
+    setJobs(jobs.filter(j => j.id !== jobId));
+    
+    // Delete the job from DB
+    await supabase.from("processing_jobs").delete().eq("id", jobId);
+    
+    // Optionally delete the result file if it exists (cascade or manual)
+    if (resultFileId) {
+       await supabase.from("files").delete().eq("id", resultFileId);
     }
   };
 
@@ -67,13 +95,22 @@ export default function Dashboard() {
           <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
             <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Current Plan</p>
             <div className="flex items-center gap-2">
-              <span className="text-xl font-bold text-slate-900">Free Tier</span>
+              <span className={clsx(
+                "text-xl font-bold uppercase",
+                plan === "premium" ? "text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600" :
+                plan === "pro" ? "text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-600" :
+                "text-slate-900"
+              )}>
+                {plan} Tier
+              </span>
               <Button onClick={() => router.push("/admin")} variant="ghost" size="sm" className="ml-2 text-slate-500 hover:text-slate-800">
                 Admin
               </Button>
-              <Button onClick={() => router.push("/pricing")} variant="outline" size="sm" className="ml-2 text-purple-600 border-purple-200 hover:bg-purple-50">
-                Upgrade
-              </Button>
+              {plan === "free" && (
+                <Button onClick={() => router.push("/pricing")} variant="outline" size="sm" className="ml-2 text-purple-600 border-purple-200 hover:bg-purple-50">
+                  Upgrade
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -96,7 +133,7 @@ export default function Dashboard() {
           ) : (
             <div className="divide-y divide-slate-100">
               {jobs.map((job) => (
-                <div key={job.id} className="p-6 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                <div key={job.id} className="p-6 flex items-center justify-between hover:bg-slate-50 transition-colors group">
                   <div className="flex items-center gap-4">
                     <div className={clsx(
                       "w-12 h-12 rounded-xl flex items-center justify-center",
@@ -127,20 +164,29 @@ export default function Dashboard() {
                     </div>
                   </div>
                   
-                  {job.status === "COMPLETED" && job.result_file && (
-                    <Button 
-                      variant="outline" 
-                      onClick={() => handleDownload(job.result_file)}
-                      className="font-semibold"
+                  <div className="flex items-center gap-3">
+                    {job.status === "COMPLETED" && job.result_file && (
+                      <Button 
+                        variant="outline" 
+                        onClick={() => handleDownload(job.result_file)}
+                        className="font-semibold"
+                      >
+                        <Download className="w-4 h-4 mr-2" /> Download
+                      </Button>
+                    )}
+                    {job.status === "FAILED" && (
+                      <div className="text-sm text-red-500 max-w-xs truncate mr-4" title={job.error_message}>
+                        {job.error_message}
+                      </div>
+                    )}
+                    <button 
+                      onClick={() => handleDelete(job.id, job.result_file?.id || null)}
+                      className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                      title="Delete Record"
                     >
-                      <Download className="w-4 h-4 mr-2" /> Download
-                    </Button>
-                  )}
-                  {job.status === "FAILED" && (
-                    <div className="text-sm text-red-500 max-w-xs truncate" title={job.error_message}>
-                      {job.error_message}
-                    </div>
-                  )}
+                      <XCircle className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
