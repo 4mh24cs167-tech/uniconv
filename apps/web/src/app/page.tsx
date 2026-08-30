@@ -59,7 +59,7 @@ export default function Home() {
 
     const isWatermark = activeToolTitle === "Watermark Remover";
     const isExcelTemplate = view === "PDF_TO_EXCEL";
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://uniconv.onrender.com";
 
     try {
       // 1. Upload files to Supabase Storage
@@ -95,7 +95,7 @@ export default function Home() {
         // Get user if any
         const { data: { session } } = await supabase.auth.getSession();
         
-        const fileRes = await supabase.table("files").insert({
+        const fileRes = await supabase.from("files").insert({
             user_id: session?.user?.id || null,
             filename: f.name,
             original_filename: f.name,
@@ -534,10 +534,10 @@ export default function Home() {
                             const a = document.createElement('a');
                             a.href = resultUrl;
                             a.download = view === "WATERMARK_REMOVER" 
-                              ? `cleaned_${file?.name || 'file'}`
+                              ? `cleaned_${files[0]?.name || 'file'}`
                               : view === "PDF_TO_EXCEL"
-                              ? `template_${file?.name.split('.')[0] || 'data'}.xlsx`
-                              : `converted.${targetFormat}`;
+                              ? `template_${files[0]?.name.split('.')[0] || 'data'}.xlsx`
+                              : `converted.${targetFormat || 'pdf'}`;
                             a.click();
                           }}
                           className={clsx(
