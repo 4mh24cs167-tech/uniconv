@@ -27,20 +27,32 @@ class MediaService:
         try:
             ext = os.path.splitext(input_path)[1].lower()
             if ext in ['.mp4', '.mov', '.avi', '.mkv', '.webm']:
-                # Video: Use FFmpeg delogo
-                # Calculate x, y based on position
-                # W=iw, H=ih, w=iw*0.25, h=ih*0.15
+                # Video: Use FFmpeg delogo - must probe dimensions first
+                import json as _json
+                probe_cmd = [
+                    "ffprobe", "-v", "quiet", "-print_format", "json",
+                    "-show_streams", "-select_streams", "v:0", input_path
+                ]
+                probe_result = subprocess.run(probe_cmd, capture_output=True, text=True)
+                probe_data = _json.loads(probe_result.stdout)
+                vw = int(probe_data["streams"][0]["width"])
+                vh = int(probe_data["streams"][0]["height"])
+                
+                logo_w = max(int(vw * 0.25), 1)
+                logo_h = max(int(vh * 0.15), 1)
+                
                 if position == "top_left":
-                    vf = "delogo=x=0:y=0:w=iw*0.25:h=ih*0.15"
+                    lx, ly = 0, 0
                 elif position == "top_right":
-                    vf = "delogo=x=iw-iw*0.25:y=0:w=iw*0.25:h=ih*0.15"
+                    lx, ly = vw - logo_w, 0
                 elif position == "bottom_left":
-                    vf = "delogo=x=0:y=ih-ih*0.15:w=iw*0.25:h=ih*0.15"
+                    lx, ly = 0, vh - logo_h
                 elif position == "center":
-                    vf = "delogo=x=iw/2-iw*0.125:y=ih/2-ih*0.075:w=iw*0.25:h=ih*0.15"
+                    lx, ly = vw // 2 - logo_w // 2, vh // 2 - logo_h // 2
                 else: # bottom_right
-                    vf = "delogo=x=iw-iw*0.25:y=ih-ih*0.15:w=iw*0.25:h=ih*0.15"
+                    lx, ly = vw - logo_w, vh - logo_h
                     
+                vf = f"delogo=x={lx}:y={ly}:w={logo_w}:h={logo_h}"
                 command = [
                     "ffmpeg", "-y", "-i", input_path,
                     "-vf", vf,
