@@ -393,14 +393,10 @@ export default function Home() {
       )}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigateTo("HUB", "")}>
-            <div className="p-2 bg-[#e5322d] text-white rounded-lg">
-              <FileText className="w-6 h-6" />
-            </div>
-            <span className={clsx(
-              "text-xl font-extrabold tracking-tight",
-              isPremium ? "text-white" : "text-slate-800"
-            )}>
-              uniconv
+            <img src="/logo.png" alt="UniConv Logo" className="w-10 h-10 object-contain" />
+            <span className="text-2xl font-extrabold tracking-tight">
+              <span className="text-blue-600">Uni</span>
+              <span className="text-teal-500">Conv</span>
             </span>
             {isPremium && (
               <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full">
