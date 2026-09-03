@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { UploadZone } from "@/components/UploadZone";
 import { FormatPicker } from "@/components/FormatPicker";
 import { ToolCard } from "@/components/ToolCard";
@@ -120,6 +121,7 @@ const AdsterraNativeBanner = () => {
 };
 
 export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
+  const router = useRouter();
   const [isPremium, setIsPremium] = useState(false);
   const [userPlan, setUserPlan] = useState("free");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -424,7 +426,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
         isPremium ? "bg-slate-900/80 border-white/10" : "bg-white/80 border-slate-200"
       )}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigateTo("HUB", "")}>
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push("/")}>
             <img src="/logo.png" alt="UniConv Logo" className="w-10 h-10 object-contain" />
             <span className="text-2xl font-extrabold tracking-tight">
               <span className="text-blue-600">Uni</span>
@@ -488,98 +490,98 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
                   title="Audio Conversions" 
                   description="Convert your audio files between popular formats."
                   icon={<Music className="w-10 h-10" />}
-                  onClick={() => { navigateTo("AUDIO_CONVERTER", "Audio Conversions"); }}
+                  onClick={() => router.push("/audio-converter")}}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="Secure PDF" 
                   description="Protect and secure your PDF documents with passwords, permissions, watermarks and redaction."
                   icon={<Shield className="w-10 h-10" />}
-                  onClick={() => { navigateTo("SECURE_PDF", "Secure PDF"); }}
+                  onClick={() => router.push("/secure-pdf")}}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="Merge PDF" 
                   description="Combine PDFs in the order you want with the easiest PDF merger available."
                   icon={<FileText className="w-10 h-10" />}
-                  onClick={() => { setTargetFormat("pdf"); navigateTo("UNIVERSAL_CONVERTER", "Merge PDF"); }}
+                  onClick={() => router.push("/merge-pdf")}}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="Split PDF" 
                   description="Separate one page or a whole set for easy conversion into independent PDF files."
                   icon={<FileText className="w-10 h-10" />}
-                  onClick={() => { setTargetFormat("pdf"); navigateTo("UNIVERSAL_CONVERTER", "Split PDF"); }}
+                  onClick={() => router.push("/split-pdf")}}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="Compress PDF" 
                   description="Reduce file size while optimizing for maximal PDF quality."
                   icon={<FileArchive className="w-10 h-10" />}
-                  onClick={() => { setTargetFormat("pdf"); navigateTo("UNIVERSAL_CONVERTER", "Compress PDF"); }}
+                  onClick={() => router.push("/compress-pdf")}}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="PDF to Word" 
                   description="Easily convert your PDF files into easy to edit DOC and DOCX documents."
                   icon={<FileText className="w-10 h-10" />}
-                  onClick={() => { setTargetFormat("docx"); navigateTo("UNIVERSAL_CONVERTER", "PDF to Word"); }}
+                  onClick={() => router.push("/pdf-to-word")}}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="PDF to PowerPoint" 
                   description="Turn your PDF files into easy to edit PPT and PPTX slideshows."
                   icon={<FileText className="w-10 h-10" />}
-                  onClick={() => { setTargetFormat("pptx"); navigateTo("UNIVERSAL_CONVERTER", "PDF to PowerPoint"); }}
+                  onClick={() => router.push("/pdf-to-powerpoint")}}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="PDF to Excel" 
                   description="Extract data from PDF to Excel spreadsheets in a few seconds."
                   icon={<FileSpreadsheet className="w-10 h-10" />}
-                  onClick={() => { setTargetFormat("xlsx"); navigateTo("PDF_TO_EXCEL", "PDF to Excel"); }}
+                  onClick={() => router.push("/pdf-to-excel")}}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="Word to PDF" 
                   description="Make DOC and DOCX files easy to read by converting them to PDF."
                   icon={<FileText className="w-10 h-10" />}
-                  onClick={() => { setTargetFormat("pdf"); navigateTo("UNIVERSAL_CONVERTER", "Word to PDF"); }}
+                  onClick={() => router.push("/word-to-pdf")}}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="PowerPoint to PDF" 
                   description="Make PPT and PPTX slideshows easy to view by converting them to PDF."
                   icon={<FileText className="w-10 h-10" />}
-                  onClick={() => { setTargetFormat("pdf"); navigateTo("UNIVERSAL_CONVERTER", "PowerPoint to PDF"); }}
+                  onClick={() => router.push("/powerpoint-to-pdf")}}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="Excel to PDF" 
                   description="Make EXCEL spreadsheets easy to read by converting them to PDF."
                   icon={<FileSpreadsheet className="w-10 h-10" />}
-                  onClick={() => { setTargetFormat("pdf"); navigateTo("UNIVERSAL_CONVERTER", "Excel to PDF"); }}
+                  onClick={() => router.push("/excel-to-pdf")}}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="JPG to PDF" 
                   description="Convert JPG images to PDF in seconds. Easily adjust orientation and margins."
                   icon={<FileImage className="w-10 h-10" />}
-                  onClick={() => { setTargetFormat("pdf"); navigateTo("UNIVERSAL_CONVERTER", "JPG to PDF"); }}
+                  onClick={() => router.push("/jpg-to-pdf")}}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="PDF to JPG" 
                   description="Extract all images inside a PDF or convert each page to a JPG image."
                   icon={<FileImage className="w-10 h-10" />}
-                  onClick={() => { setTargetFormat("jpg"); navigateTo("UNIVERSAL_CONVERTER", "PDF to JPG"); }}
+                  onClick={() => router.push("/pdf-to-jpg")}}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="JPG Compressor" 
                   description="Compress your JPG images to the smallest file size while keeping perfect quality."
                   icon={<FileImage className="w-10 h-10" />}
-                  onClick={() => { setTargetFormat("jpg"); navigateTo("UNIVERSAL_CONVERTER", "Compress JPG"); }}
+                  onClick={() => router.push("/compress-jpg")}}
                 />
                 <ToolCard 
                   isPremium={isPremium}
@@ -588,7 +590,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
                   icon={<FileText className="w-10 h-10 text-purple-500" />}
                   onClick={() => { 
                     if (userPlan === "pro" || userPlan === "premium") {
-                      setTargetFormat("txt"); navigateTo("UNIVERSAL_CONVERTER", "Extract Text (OCR)"); 
+                      router.push("/extract-text-ocr"); 
                     } else {
                       alert("Extract Text (OCR) is a Pro/Premium feature. Please upgrade your plan.");
                       window.location.href = "/pricing";
@@ -600,28 +602,28 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
                   title="Watermark Remover" 
                   description="Automatically detect and remove watermarks from images or videos."
                   icon={<Eraser className="w-10 h-10" />}
-                  onClick={() => navigateTo("WATERMARK_REMOVER", "Watermark Remover")}
+                  onClick={() => router.push("/watermark-remover")}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="Extract Audio" 
                   description="Extract high-quality audio (MP3, WAV) from any video file instantly."
                   icon={<FileArchive className="w-10 h-10" />}
-                  onClick={() => { setTargetFormat("mp3"); navigateTo("UNIVERSAL_CONVERTER", "Extract Audio"); }}
+                  onClick={() => router.push("/extract-audio")}}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="HTML to PDF" 
                   description="Convert webpages in HTML to PDF. Copy and paste the URL of the page you want."
                   icon={<FileText className="w-10 h-10" />}
-                  onClick={() => { setTargetFormat("pdf"); navigateTo("UNIVERSAL_CONVERTER", "HTML to PDF"); }}
+                  onClick={() => router.push("/html-to-pdf")}}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="Unlock PDF" 
                   description="Remove PDF password security, giving you the freedom to use your PDFs as you want."
                   icon={<FileText className="w-10 h-10" />}
-                  onClick={() => { setTargetFormat("pdf"); navigateTo("UNIVERSAL_CONVERTER", "Unlock PDF"); }}
+                  onClick={() => router.push("/unlock-pdf")}}
                 />
               </div>
               
@@ -638,7 +640,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
               className="w-full max-w-7xl mx-auto"
             >
               <button 
-                onClick={() => navigateTo("HUB")}
+                onClick={() => router.push("/")}
                 className="flex items-center space-x-2 text-sm font-semibold mb-6 text-slate-500 hover:text-[#e5322d] transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -866,7 +868,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
               className="max-w-4xl mx-auto"
             >
               <button 
-                onClick={() => navigateTo("HUB")}
+                onClick={() => router.push("/")}
                 className="flex items-center space-x-2 text-sm font-semibold mb-6 text-slate-500 hover:text-[#e5322d] transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
