@@ -51,6 +51,15 @@ class MediaService:
                     lx, ly = vw // 2 - logo_w // 2, vh // 2 - logo_h // 2
                 else: # bottom_right
                     lx, ly = vw - logo_w, vh - logo_h
+                
+                # FFMPEG delogo sometimes crashes if boundaries exactly match width/height
+                # Pad inwards by 2 pixels to guarantee we stay inside the bounding box
+                lx = max(2, lx)
+                ly = max(2, ly)
+                if lx + logo_w >= vw:
+                    logo_w = vw - lx - 2
+                if ly + logo_h >= vh:
+                    logo_h = vh - ly - 2
                     
                 vf = f"delogo=x={lx}:y={ly}:w={logo_w}:h={logo_h}"
                 command = [
@@ -59,7 +68,11 @@ class MediaService:
                     "-c:a", "copy",
                     output_path
                 ]
-                subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                # Capture output to help debug if it fails again
+                res = subprocess.run(command, capture_output=True, text=True)
+                if res.returncode != 0:
+                    print(f"FFMPEG ERROR: {res.stderr}")
+                    return False
                 return True
             else:
                 import cv2
