@@ -45,6 +45,36 @@ const AdsterraBanner = () => {
   return <div ref={banner} className="w-[160px] h-[600px] flex items-center justify-center text-xs text-slate-400 bg-transparent" />;
 };
 
+const BottomStickyAd = () => {
+  const [isVisible, setIsVisible] = useState(true);
+  const banner = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!banner.current || !isVisible) return;
+    banner.current.innerHTML = '';
+    const script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.src = 'https://pl31158860.profitableratecpmnetwork.com/5b/1e/4f/5b1e4fc5d17adfe9d0d51da6477ab0de.js';
+    banner.current.append(script);
+  }, [isVisible]);
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-[100] bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1)] p-2 flex justify-center items-center min-h-[90px]">
+      <button 
+        onClick={() => setIsVisible(false)}
+        className="absolute top-2 right-4 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-full p-1 transition-colors"
+        aria-label="Close Ad"
+      >
+        <X className="w-4 h-4" />
+      </button>
+      <div className="absolute top-2 left-4 text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">Advertisement</div>
+      <div ref={banner} className="w-full flex justify-center" />
+    </div>
+  );
+};
+
 export default function Home() {
   const [isPremium, setIsPremium] = useState(false);
   const [userPlan, setUserPlan] = useState("free");
@@ -310,6 +340,7 @@ export default function Home() {
       <div className="hidden 2xl:block fixed right-4 top-1/2 -translate-y-1/2 w-[160px] h-[600px] z-50">
         <AdsterraBanner />
       </div>
+      <BottomStickyAd />
 
       {/* Header */}
       <header className={clsx(
