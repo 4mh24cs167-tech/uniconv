@@ -490,98 +490,98 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
                   title="Audio Conversions" 
                   description="Convert your audio files between popular formats."
                   icon={<Music className="w-10 h-10" />}
-                  onClick={() => router.push("/audio-converter")}}
+                  onClick={() => router.push("/audio-converter")}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="Secure PDF" 
                   description="Protect and secure your PDF documents with passwords, permissions, watermarks and redaction."
                   icon={<Shield className="w-10 h-10" />}
-                  onClick={() => router.push("/secure-pdf")}}
+                  onClick={() => router.push("/secure-pdf")}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="Merge PDF" 
                   description="Combine PDFs in the order you want with the easiest PDF merger available."
                   icon={<FileText className="w-10 h-10" />}
-                  onClick={() => router.push("/merge-pdf")}}
+                  onClick={() => router.push("/merge-pdf")}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="Split PDF" 
                   description="Separate one page or a whole set for easy conversion into independent PDF files."
                   icon={<FileText className="w-10 h-10" />}
-                  onClick={() => router.push("/split-pdf")}}
+                  onClick={() => router.push("/split-pdf")}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="Compress PDF" 
                   description="Reduce file size while optimizing for maximal PDF quality."
                   icon={<FileArchive className="w-10 h-10" />}
-                  onClick={() => router.push("/compress-pdf")}}
+                  onClick={() => router.push("/compress-pdf")}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="PDF to Word" 
                   description="Easily convert your PDF files into easy to edit DOC and DOCX documents."
                   icon={<FileText className="w-10 h-10" />}
-                  onClick={() => router.push("/pdf-to-word")}}
+                  onClick={() => router.push("/pdf-to-word")}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="PDF to PowerPoint" 
                   description="Turn your PDF files into easy to edit PPT and PPTX slideshows."
                   icon={<FileText className="w-10 h-10" />}
-                  onClick={() => router.push("/pdf-to-powerpoint")}}
+                  onClick={() => router.push("/pdf-to-powerpoint")}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="PDF to Excel" 
                   description="Extract data from PDF to Excel spreadsheets in a few seconds."
                   icon={<FileSpreadsheet className="w-10 h-10" />}
-                  onClick={() => router.push("/pdf-to-excel")}}
+                  onClick={() => router.push("/pdf-to-excel")}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="Word to PDF" 
                   description="Make DOC and DOCX files easy to read by converting them to PDF."
                   icon={<FileText className="w-10 h-10" />}
-                  onClick={() => router.push("/word-to-pdf")}}
+                  onClick={() => router.push("/word-to-pdf")}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="PowerPoint to PDF" 
                   description="Make PPT and PPTX slideshows easy to view by converting them to PDF."
                   icon={<FileText className="w-10 h-10" />}
-                  onClick={() => router.push("/powerpoint-to-pdf")}}
+                  onClick={() => router.push("/powerpoint-to-pdf")}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="Excel to PDF" 
                   description="Make EXCEL spreadsheets easy to read by converting them to PDF."
                   icon={<FileSpreadsheet className="w-10 h-10" />}
-                  onClick={() => router.push("/excel-to-pdf")}}
+                  onClick={() => router.push("/excel-to-pdf")}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="JPG to PDF" 
                   description="Convert JPG images to PDF in seconds. Easily adjust orientation and margins."
                   icon={<FileImage className="w-10 h-10" />}
-                  onClick={() => router.push("/jpg-to-pdf")}}
+                  onClick={() => router.push("/jpg-to-pdf")}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="PDF to JPG" 
                   description="Extract all images inside a PDF or convert each page to a JPG image."
                   icon={<FileImage className="w-10 h-10" />}
-                  onClick={() => router.push("/pdf-to-jpg")}}
+                  onClick={() => router.push("/pdf-to-jpg")}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="JPG Compressor" 
                   description="Compress your JPG images to the smallest file size while keeping perfect quality."
                   icon={<FileImage className="w-10 h-10" />}
-                  onClick={() => router.push("/compress-jpg")}}
+                  onClick={() => router.push("/compress-jpg")}
                 />
                 <ToolCard 
                   isPremium={isPremium}
@@ -609,21 +609,21 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
                   title="Extract Audio" 
                   description="Extract high-quality audio (MP3, WAV) from any video file instantly."
                   icon={<FileArchive className="w-10 h-10" />}
-                  onClick={() => router.push("/extract-audio")}}
+                  onClick={() => router.push("/extract-audio")}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="HTML to PDF" 
                   description="Convert webpages in HTML to PDF. Copy and paste the URL of the page you want."
                   icon={<FileText className="w-10 h-10" />}
-                  onClick={() => router.push("/html-to-pdf")}}
+                  onClick={() => router.push("/html-to-pdf")}
                 />
                 <ToolCard 
                   isPremium={isPremium}
                   title="Unlock PDF" 
                   description="Remove PDF password security, giving you the freedom to use your PDFs as you want."
                   icon={<FileText className="w-10 h-10" />}
-                  onClick={() => router.push("/unlock-pdf")}}
+                  onClick={() => router.push("/unlock-pdf")}
                 />
               </div>
               
