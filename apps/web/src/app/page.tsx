@@ -35,15 +35,29 @@ export default function Home() {
   // Watermark Remover state
   const [watermarkPos, setWatermarkPos] = useState<string>("bottom_right");
 
+  // Ad state
+  const [ad, setAd] = useState<{image_url: string, target_url: string} | null>(null);
+
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const fetchPlan = async () => {
+    const fetchPlanAndAd = async () => {
       const { createBrowserClient } = await import('@supabase/ssr');
       const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
       );
+      
+      // Fetch Ad
+      try {
+        const { data } = await supabase.from('ads').select('*').eq('is_active', true).limit(1).single();
+        if (data) {
+          setAd(data);
+        }
+      } catch (e) {
+        // Fallback or ignore if table doesn't exist yet
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setIsLoggedIn(true);
@@ -64,7 +78,7 @@ export default function Home() {
         }
       }
     };
-    fetchPlan();
+    fetchPlanAndAd();
   }, []);
 
   // Shared state for the active tool
