@@ -53,6 +53,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         {children}
         <Analytics />
+        <Script 
+          src="https://pl31158860.profitableratecpmnetwork.com/5b/1e/4f/5b1e4fc5d17adfe9d0d51da6477ab0de.js" 
+          strategy="afterInteractive" 
+        />
       </body>
     </html>
   );
