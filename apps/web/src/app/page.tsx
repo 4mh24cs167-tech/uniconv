@@ -15,6 +15,36 @@ import { PremiumGate } from "@/components/PremiumGate";
 
 type ViewState = "HUB" | "UNIVERSAL_CONVERTER" | "WATERMARK_REMOVER" | "PDF_TO_EXCEL" | "AUDIO_CONVERTER" | "SECURE_PDF";
 
+const AdsterraBanner = () => {
+  const banner = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!banner.current) return;
+    
+    // Clear any existing ad to prevent duplicates on re-renders
+    banner.current.innerHTML = '';
+
+    const conf = document.createElement('script');
+    conf.type = 'text/javascript';
+    conf.innerHTML = `atOptions = {
+      'key' : 'ac26a747103aa507dba80d5383d1b753',
+      'format' : 'iframe',
+      'height' : 600,
+      'width' : 160,
+      'params' : {}
+    };`;
+
+    const script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.src = 'https://www.highrevenueformat.com/ac26a747103aa507dba80d5383d1b753/invoke.js';
+    
+    banner.current.append(conf);
+    banner.current.append(script);
+  }, []);
+
+  return <div ref={banner} className="w-[160px] h-[600px] flex items-center justify-center text-xs text-slate-400 bg-transparent" />;
+};
+
 export default function Home() {
   const [isPremium, setIsPremium] = useState(false);
   const [userPlan, setUserPlan] = useState("free");
@@ -274,22 +304,12 @@ export default function Home() {
       isPremium ? "dark bg-slate-950 text-slate-50" : "bg-slate-50 text-slate-900"
     )}>
       {/* Ad Banners */}
-      {ad && (
-        <>
-          <div className="hidden 2xl:block fixed left-4 top-1/2 -translate-y-1/2 w-[160px] h-[600px] bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shadow-lg hover:scale-105 transition-transform z-50">
-            <a href={ad.target_url} target="_blank" rel="noopener noreferrer">
-              <img src={ad.image_url} alt="Advertisement" className="w-full h-full object-cover" />
-            </a>
-            <span className="absolute top-1 right-1 bg-black/60 text-white text-[10px] px-1 rounded backdrop-blur-sm">Ad</span>
-          </div>
-          <div className="hidden 2xl:block fixed right-4 top-1/2 -translate-y-1/2 w-[160px] h-[600px] bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shadow-lg hover:scale-105 transition-transform z-50">
-            <a href={ad.target_url} target="_blank" rel="noopener noreferrer">
-              <img src={ad.image_url} alt="Advertisement" className="w-full h-full object-cover" />
-            </a>
-            <span className="absolute top-1 right-1 bg-black/60 text-white text-[10px] px-1 rounded backdrop-blur-sm">Ad</span>
-          </div>
-        </>
-      )}
+      <div className="hidden 2xl:block fixed left-4 top-1/2 -translate-y-1/2 w-[160px] h-[600px] z-50">
+        <AdsterraBanner />
+      </div>
+      <div className="hidden 2xl:block fixed right-4 top-1/2 -translate-y-1/2 w-[160px] h-[600px] z-50">
+        <AdsterraBanner />
+      </div>
 
       {/* Header */}
       <header className={clsx(
