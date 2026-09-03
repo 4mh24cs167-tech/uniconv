@@ -38,8 +38,8 @@ class MediaService:
                 vw = int(probe_data["streams"][0]["width"])
                 vh = int(probe_data["streams"][0]["height"])
                 
-                logo_w = max(int(vw * 0.25), 1)
-                logo_h = max(int(vh * 0.15), 1)
+                logo_w = max(int(vw * 0.35), 1)
+                logo_h = max(int(vh * 0.20), 1)
                 
                 if position == "top_left":
                     lx, ly = 0, 0
@@ -85,8 +85,8 @@ class MediaService:
                 h, w = img.shape[:2]
                 mask = np.zeros((h, w), dtype=np.uint8)
                 
-                mask_h = int(h * 0.15)
-                mask_w = int(w * 0.25)
+                mask_h = int(h * 0.20)
+                mask_w = int(w * 0.35)
                 
                 if position == "top_left":
                     mask[0:mask_h, 0:mask_w] = 255
