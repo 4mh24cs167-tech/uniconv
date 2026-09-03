@@ -73,6 +73,7 @@ class MediaService:
                 command = [
                     "ffmpeg", "-y", "-i", input_path,
                     "-vf", vf,
+                    "-preset", "ultrafast",
                     "-c:a", "copy",
                     output_path
                 ]
