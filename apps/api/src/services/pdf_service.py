@@ -302,17 +302,26 @@ class PDFService:
         try:
             import fitz
             doc = fitz.open(input_path)
-            perms = fitz.PDF_PERM_ACCESSIBILITY # always allow accessibility
+            # By default, grant all standard permissions
+            perms = (
+                fitz.PDF_PERM_ACCESSIBILITY |
+                fitz.PDF_PERM_PRINT |
+                fitz.PDF_PERM_COPY |
+                fitz.PDF_PERM_MODIFY |
+                fitz.PDF_PERM_ANNOTATE |
+                fitz.PDF_PERM_FORM
+            )
+            # The UI asks to "Restrict" them. So if True, we remove the permission.
             if permissions.get("print", False):
-                perms |= fitz.PDF_PERM_PRINT
+                perms &= ~fitz.PDF_PERM_PRINT
             if permissions.get("copy", False):
-                perms |= fitz.PDF_PERM_COPY
+                perms &= ~fitz.PDF_PERM_COPY
             if permissions.get("edit", False):
-                perms |= fitz.PDF_PERM_MODIFY
+                perms &= ~fitz.PDF_PERM_MODIFY
             if permissions.get("comments", False):
-                perms |= fitz.PDF_PERM_ANNOTATE
+                perms &= ~fitz.PDF_PERM_ANNOTATE
             if permissions.get("fill_forms", False):
-                perms |= fitz.PDF_PERM_FORM
+                perms &= ~fitz.PDF_PERM_FORM
             
             # Requires encryption to set permissions
             doc.save(output_path, encryption=fitz.PDF_ENCRYPT_AES_256, permissions=perms, owner_pw="admin")
@@ -335,10 +344,11 @@ class PDFService:
                 rect = page.rect
                 point = fitz.Point(rect.width / 4, rect.height / 2)
                 try:
-                    page.insert_text(point, text, fontsize=50, color=(0.5, 0.5, 0.5), rotate=45, fill_opacity=0.3)
+                    # rotate must be multiples of 90 in PyMuPDF insert_text. 
+                    # We will just use 0 (horizontal) to avoid ValueError.
+                    page.insert_text(point, text, fontsize=50, color=(0.5, 0.5, 0.5), rotate=0, fill_opacity=0.3)
                 except TypeError:
-                    # fallback if fill_opacity is rejected
-                    page.insert_text(point, text, fontsize=50, color=(0.5, 0.5, 0.5), rotate=45)
+                    page.insert_text(point, text, fontsize=50, color=(0.5, 0.5, 0.5), rotate=0)
                     
             doc.save(output_path)
             doc.close()
