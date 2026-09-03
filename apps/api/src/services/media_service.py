@@ -101,11 +101,26 @@ class MediaService:
         Transcodes audio from one format to another using FFmpeg.
         """
         try:
+            ext = os.path.splitext(output_path)[1].lower()
+            codec_args = []
+            if ext == ".mp3":
+                codec_args = ["-c:a", "libmp3lame", "-q:a", "2"]
+            elif ext in [".ogg", ".oga"]:
+                codec_args = ["-c:a", "libvorbis", "-q:a", "4"]
+            elif ext in [".m4a", ".aac"]:
+                codec_args = ["-c:a", "aac", "-b:a", "192k"]
+            elif ext == ".wav":
+                codec_args = ["-c:a", "pcm_s16le"]
+            elif ext == ".flac":
+                codec_args = ["-c:a", "flac"]
+            elif ext == ".wma":
+                codec_args = ["-c:a", "wmav2"]
+                
             command = [
                 "ffmpeg", "-y", "-i", input_path,
-                "-vn", # Disable video just in case
-                output_path
-            ]
+                "-vn"
+            ] + codec_args + [output_path]
+            
             subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             return True
         except Exception as e:

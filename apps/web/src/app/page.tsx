@@ -259,7 +259,24 @@ export default function Home() {
       "min-h-screen transition-colors duration-500 font-sans",
       isPremium ? "dark bg-slate-950 text-slate-50" : "bg-slate-50 text-slate-900"
     )}>
-      
+      {/* Ad Banners */}
+      {ad && (
+        <>
+          <div className="hidden 2xl:block fixed left-4 top-1/2 -translate-y-1/2 w-[160px] h-[600px] bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shadow-lg hover:scale-105 transition-transform z-50">
+            <a href={ad.target_url} target="_blank" rel="noopener noreferrer">
+              <img src={ad.image_url} alt="Advertisement" className="w-full h-full object-cover" />
+            </a>
+            <span className="absolute top-1 right-1 bg-black/60 text-white text-[10px] px-1 rounded backdrop-blur-sm">Ad</span>
+          </div>
+          <div className="hidden 2xl:block fixed right-4 top-1/2 -translate-y-1/2 w-[160px] h-[600px] bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shadow-lg hover:scale-105 transition-transform z-50">
+            <a href={ad.target_url} target="_blank" rel="noopener noreferrer">
+              <img src={ad.image_url} alt="Advertisement" className="w-full h-full object-cover" />
+            </a>
+            <span className="absolute top-1 right-1 bg-black/60 text-white text-[10px] px-1 rounded backdrop-blur-sm">Ad</span>
+          </div>
+        </>
+      )}
+
       {/* Header */}
       <header className={clsx(
         "sticky top-0 z-50 border-b backdrop-blur-md transition-colors",

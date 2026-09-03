@@ -300,7 +300,6 @@ class PDFService:
     @staticmethod
     def secure_permissions(input_path: str, output_path: str, permissions: dict) -> bool:
         try:
-            # permissions dict: {'print': bool, 'copy': bool, 'edit': bool, 'comments': bool, 'fill_forms': bool}
             import fitz
             doc = fitz.open(input_path)
             perms = fitz.PDF_PERM_ACCESSIBILITY # always allow accessibility
@@ -315,7 +314,8 @@ class PDFService:
             if permissions.get("fill_forms", False):
                 perms |= fitz.PDF_PERM_FORM
             
-            doc.save(output_path, permissions=perms, owner_pw="admin")
+            # Requires encryption to set permissions
+            doc.save(output_path, encryption=fitz.PDF_ENCRYPT_AES_256, permissions=perms, owner_pw="admin")
             doc.close()
             return True
         except Exception as e:
@@ -327,14 +327,19 @@ class PDFService:
         try:
             import fitz
             doc = fitz.open(input_path)
-            text = config.get("text")
+            text = config.get("text", "CONFIDENTIAL")
+            if not text:
+                text = "CONFIDENTIAL"
             
             for page in doc:
                 rect = page.rect
-                if text:
-                    # Simple center watermark
-                    point = fitz.Point(rect.width / 4, rect.height / 2)
+                point = fitz.Point(rect.width / 4, rect.height / 2)
+                try:
                     page.insert_text(point, text, fontsize=50, color=(0.5, 0.5, 0.5), rotate=45, fill_opacity=0.3)
+                except TypeError:
+                    # fallback if fill_opacity is rejected
+                    page.insert_text(point, text, fontsize=50, color=(0.5, 0.5, 0.5), rotate=45)
+                    
             doc.save(output_path)
             doc.close()
             return True
@@ -345,6 +350,12 @@ class PDFService:
     @staticmethod
     def secure_redact(input_path: str, output_path: str, text_to_redact: str) -> bool:
         try:
+            if not text_to_redact:
+                # Nothing to redact, just copy
+                import shutil
+                shutil.copyfile(input_path, output_path)
+                return True
+                
             import fitz
             doc = fitz.open(input_path)
             for page in doc:
@@ -364,7 +375,16 @@ class PDFService:
         try:
             import fitz
             doc = fitz.open(input_path)
-            doc.set_metadata({})
+            doc.set_metadata({
+                "author": "",
+                "title": "",
+                "subject": "",
+                "keywords": "",
+                "creator": "",
+                "producer": "",
+                "creationDate": "",
+                "modDate": ""
+            })
             doc.save(output_path)
             doc.close()
             return True
