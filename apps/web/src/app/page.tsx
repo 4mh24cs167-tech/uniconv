@@ -101,6 +101,24 @@ const BottomStickyAd = () => {
   );
 };
 
+const AdsterraNativeBanner = () => {
+  const containerId = "container-b2b0924fd99dc0e7e51209eb0175db9b";
+  
+  useEffect(() => {
+    if (document.getElementById(`script-${containerId}`)) return;
+
+    const script = document.createElement("script");
+    script.id = `script-${containerId}`;
+    script.src = "https://pl31158859.profitableratecpmnetwork.com/b2b0924fd99dc0e7e51209eb0175db9b/invoke.js";
+    script.async = true;
+    script.setAttribute("data-cfasync", "false");
+    
+    document.body.appendChild(script);
+  }, []);
+
+  return <div id={containerId} className="w-full flex justify-center my-6" />;
+};
+
 export default function Home() {
   const [isPremium, setIsPremium] = useState(false);
   const [userPlan, setUserPlan] = useState("free");
@@ -435,6 +453,8 @@ export default function Home() {
                   Convert, extract, and clean your files with a few clicks. Secure, fast, and fully automated.
                 </p>
               </div>
+              
+              <AdsterraNativeBanner />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 <ToolCard 
