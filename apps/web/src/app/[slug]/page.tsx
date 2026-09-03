@@ -102,11 +102,12 @@ const toolMappings: Record<string, { title: string, description: string, keyword
 };
 
 type Props = {
-  params: { slug: string }
+  params: Promise<{ slug: string }>
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const tool = toolMappings[params.slug];
+  const resolvedParams = await params;
+  const tool = toolMappings[resolvedParams.slug];
   
   if (!tool) {
     return {
@@ -121,17 +122,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: tool.title,
       description: tool.description,
-      url: `https://uniconv-psi.vercel.app/${params.slug}`,
+      url: `https://uniconv-psi.vercel.app/${resolvedParams.slug}`,
       siteName: "UniConv",
       type: "website",
     }
   };
 }
 
-export default function ToolPage({ params }: Props) {
-  if (!toolMappings[params.slug]) {
+export default async function ToolPage({ params }: Props) {
+  const resolvedParams = await params;
+  if (!toolMappings[resolvedParams.slug]) {
     notFound();
   }
 
-  return <MainWorkspace initialSlug={params.slug} />;
+  return <MainWorkspace initialSlug={resolvedParams.slug} />;
 }
