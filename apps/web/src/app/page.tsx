@@ -16,10 +16,11 @@ import { PremiumGate } from "@/components/PremiumGate";
 type ViewState = "HUB" | "UNIVERSAL_CONVERTER" | "WATERMARK_REMOVER" | "PDF_TO_EXCEL" | "AUDIO_CONVERTER" | "SECURE_PDF";
 
 const AdsterraBanner = () => {
+  const [isVisible, setIsVisible] = useState(true);
   const banner = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!banner.current) return;
+    if (!banner.current || !isVisible) return;
     
     // Clear any existing ad to prevent duplicates on re-renders
     banner.current.innerHTML = '';
@@ -40,9 +41,21 @@ const AdsterraBanner = () => {
     
     banner.current.append(conf);
     banner.current.append(script);
-  }, []);
+  }, [isVisible]);
 
-  return <div ref={banner} className="w-[160px] h-[600px] flex items-center justify-center text-xs text-slate-400 bg-transparent" />;
+  if (!isVisible) return null;
+
+  return (
+    <div className="relative">
+      <button 
+        onClick={() => setIsVisible(false)}
+        className="absolute -top-3 -right-3 z-50 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 rounded-full p-1 shadow-md border border-slate-300 dark:border-slate-600"
+      >
+        <X className="w-3 h-3" />
+      </button>
+      <div ref={banner} className="w-[160px] h-[600px] flex items-center justify-center text-xs text-slate-400 bg-transparent" />
+    </div>
+  );
 };
 
 const BottomStickyAd = () => {
@@ -382,7 +395,7 @@ export default function Home() {
       </header>
 
       {/* Main View Area */}
-      <main className="max-w-[1400px] mx-auto px-6 py-12">
+      <main className="max-w-6xl mx-auto px-6 py-12">
         <AnimatePresence mode="wait">
           {view === "HUB" && (
             <motion.div 
