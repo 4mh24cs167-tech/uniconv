@@ -38,8 +38,10 @@ class MediaService:
                 vw = int(probe_data["streams"][0]["width"])
                 vh = int(probe_data["streams"][0]["height"])
                 
-                logo_w = max(int(vw * 0.35), 1)
-                logo_h = max(int(vh * 0.20), 1)
+                # Make the box a wide rectangle rather than a massive square
+                # Most watermarks (like Gemini, TikTok) are long and short.
+                logo_w = max(int(vw * 0.40), 1)
+                logo_h = max(int(vh * 0.07), 1)
                 
                 if position == "top_left":
                     lx, ly = 0, 0
