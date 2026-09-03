@@ -44,16 +44,10 @@ class MediaService:
                 logo_h = max(int(vh * 0.07), 1)
                 
                 if position == "gemini":
-                    mask_h = int(h * 0.08)
-                    mask_w = int(w * 0.15)
-                    pad_x = int(w * 0.01)
-                    pad_y = int(h * 0.01)
-                    # Don't go out of bounds
-                    y1 = max(0, h - mask_h - pad_y)
-                    y2 = h - pad_y
-                    x1 = max(0, w - mask_w - pad_x)
-                    x2 = w - pad_x
-                    mask[y1:y2, x1:x2] = 255
+                    logo_w = max(int(vw * 0.12), 1)
+                    logo_h = max(int(vh * 0.08), 1)
+                    lx = vw - logo_w - max(int(vw * 0.01), 1)
+                    ly = vh - logo_h - max(int(vh * 0.01), 1)
                 elif position == "top_left":
                     lx, ly = 0, 0
                 elif position == "top_right":
@@ -102,16 +96,10 @@ class MediaService:
                 mask_w = int(w * 0.35)
                 
                 if position == "gemini":
-                    mask_h = int(h * 0.08)
-                    mask_w = int(w * 0.15)
-                    pad_x = int(w * 0.01)
-                    pad_y = int(h * 0.01)
-                    # Don't go out of bounds
-                    y1 = max(0, h - mask_h - pad_y)
-                    y2 = h - pad_y
-                    x1 = max(0, w - mask_w - pad_x)
-                    x2 = w - pad_x
-                    mask[y1:y2, x1:x2] = 255
+                    logo_w = max(int(vw * 0.12), 1)
+                    logo_h = max(int(vh * 0.08), 1)
+                    lx = vw - logo_w - max(int(vw * 0.01), 1)
+                    ly = vh - logo_h - max(int(vh * 0.01), 1)
                 elif position == "top_left":
                     mask[0:mask_h, 0:mask_w] = 255
                 elif position == "top_right":
