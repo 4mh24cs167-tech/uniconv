@@ -453,8 +453,6 @@ export default function Home() {
                   Convert, extract, and clean your files with a few clicks. Secure, fast, and fully automated.
                 </p>
               </div>
-              
-              <AdsterraNativeBanner />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 <ToolCard 
@@ -598,6 +596,8 @@ export default function Home() {
                   onClick={() => { setTargetFormat("pdf"); navigateTo("UNIVERSAL_CONVERTER", "Unlock PDF"); }}
                 />
               </div>
+              
+              <AdsterraNativeBanner />
             </motion.div>
           )}
 
