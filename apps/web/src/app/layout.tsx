@@ -31,6 +31,8 @@ export const metadata: Metadata = {
   }
 };
 
+import Script from "next/script";
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
@@ -40,6 +42,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         {children}
         <Analytics />
+        <Script 
+          src="https://pl31158858.profitableratecpmnetwork.com/62/2d/6e/622d6ea81de80505c7807566e3321b2e.js" 
+          strategy="afterInteractive" 
+        />
       </body>
     </html>
   );
