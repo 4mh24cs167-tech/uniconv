@@ -43,7 +43,13 @@ class MediaService:
                 logo_w = max(int(vw * 0.40), 1)
                 logo_h = max(int(vh * 0.07), 1)
                 
-                if position == "top_left":
+                if position == "gemini":
+                    # Tiny square in bottom right for Gemini spark logo
+                    logo_w = max(int(vw * 0.15), 1)
+                    logo_h = max(int(vh * 0.08), 1)
+                    lx = vw - logo_w - max(int(vw * 0.01), 1)
+                    ly = vh - logo_h - max(int(vh * 0.01), 1)
+                elif position == "top_left":
                     lx, ly = 0, 0
                 elif position == "top_right":
                     lx, ly = vw - logo_w, 0
@@ -90,7 +96,13 @@ class MediaService:
                 mask_h = int(h * 0.20)
                 mask_w = int(w * 0.35)
                 
-                if position == "top_left":
+                if position == "gemini":
+                    # Tiny square in bottom right for Gemini spark logo
+                    logo_w = max(int(vw * 0.15), 1)
+                    logo_h = max(int(vh * 0.08), 1)
+                    lx = vw - logo_w - max(int(vw * 0.01), 1)
+                    ly = vh - logo_h - max(int(vh * 0.01), 1)
+                elif position == "top_left":
                     mask[0:mask_h, 0:mask_w] = 255
                 elif position == "top_right":
                     mask[0:mask_h, w - mask_w:] = 255

@@ -1019,6 +1019,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
                                 <option value="center">Center</option>
                                 <option value="bottom_left">Bottom Left</option>
                                 <option value="bottom_right">Bottom Right</option>
+                                <option value="gemini">Gemini Logo</option>
                               </select>
                             </div>
                           )}
