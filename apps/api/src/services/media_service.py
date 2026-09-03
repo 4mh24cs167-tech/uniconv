@@ -44,10 +44,11 @@ class MediaService:
                 logo_h = max(int(vh * 0.07), 1)
                 
                 if position == "gemini":
-                    logo_w = max(int(vw * 0.12), 1)
-                    logo_h = max(int(vh * 0.08), 1)
-                    lx = vw - logo_w - max(int(vw * 0.01), 1)
-                    ly = vh - logo_h - max(int(vh * 0.01), 1)
+                    # Slightly larger box to catch the glow, flush with bottom right corner
+                    logo_w = max(int(vw * 0.18), 1)
+                    logo_h = max(int(vh * 0.12), 1)
+                    lx = vw - logo_w - 2
+                    ly = vh - logo_h - 2
                 elif position == "top_left":
                     lx, ly = 0, 0
                 elif position == "top_right":
