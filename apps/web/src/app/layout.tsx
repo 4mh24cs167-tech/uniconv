@@ -28,6 +28,9 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "UniConv | The Ultimate File Converter",
     description: "Convert, merge, compress, and edit PDFs, images, and office documents instantly for free.",
+  },
+  other: {
+    "google-adsense-account": "ca-pub-9886149871233121"
   }
 };
 
