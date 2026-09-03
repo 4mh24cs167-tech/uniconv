@@ -15,91 +15,7 @@ import { PremiumGate } from "@/components/PremiumGate";
 
 type ViewState = "HUB" | "UNIVERSAL_CONVERTER" | "WATERMARK_REMOVER" | "PDF_TO_EXCEL" | "AUDIO_CONVERTER" | "SECURE_PDF";
 
-const AdsterraBanner = () => {
-  const [isVisible, setIsVisible] = useState(true);
-  const banner = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!banner.current || !isVisible) return;
-    
-    // Clear any existing ad to prevent duplicates on re-renders
-    banner.current.innerHTML = '';
-
-    const conf = document.createElement('script');
-    conf.type = 'text/javascript';
-    conf.innerHTML = `atOptions = {
-      'key' : 'ac26a747103aa507dba80d5383d1b753',
-      'format' : 'iframe',
-      'height' : 600,
-      'width' : 160,
-      'params' : {}
-    };`;
-
-    const script = document.createElement('script');
-    script.type = 'text/javascript';
-    script.src = 'https://www.highrevenueformat.com/ac26a747103aa507dba80d5383d1b753/invoke.js';
-    
-    banner.current.append(conf);
-    banner.current.append(script);
-  }, [isVisible]);
-
-  if (!isVisible) return null;
-
-  return (
-    <div className="relative">
-      <button 
-        onClick={() => setIsVisible(false)}
-        className="absolute -top-3 -right-3 z-50 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 rounded-full p-1 shadow-md border border-slate-300 dark:border-slate-600"
-      >
-        <X className="w-3 h-3" />
-      </button>
-      <div ref={banner} className="w-[160px] h-[600px] flex items-center justify-center text-xs text-slate-400 bg-transparent" />
-    </div>
-  );
-};
-
-const BottomStickyAd = () => {
-  const [isVisible, setIsVisible] = useState(true);
-  const banner = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!banner.current || !isVisible) return;
-    banner.current.innerHTML = '';
-    
-    const conf = document.createElement('script');
-    conf.type = 'text/javascript';
-    conf.innerHTML = `atOptions = {
-      'key' : 'cae542104f9271b9d12d8da545808b93',
-      'format' : 'iframe',
-      'height' : 50,
-      'width' : 320,
-      'params' : {}
-    };`;
-
-    const script = document.createElement('script');
-    script.type = 'text/javascript';
-    script.src = 'https://www.highrevenueformat.com/cae542104f9271b9d12d8da545808b93/invoke.js';
-    
-    banner.current.append(conf);
-    banner.current.append(script);
-  }, [isVisible]);
-
-  if (!isVisible) return null;
-
-  return (
-    <div className="fixed bottom-0 left-0 right-0 z-[100] bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1)] p-2 flex justify-center items-center min-h-[70px]">
-      <button 
-        onClick={() => setIsVisible(false)}
-        className="absolute top-1 right-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-full p-1 transition-colors z-10"
-        aria-label="Close Ad"
-      >
-        <X className="w-4 h-4" />
-      </button>
-      <div className="absolute top-1 left-2 text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">Advertisement</div>
-      <div ref={banner} className="w-[320px] h-[50px] flex justify-center items-center overflow-hidden pt-4 sm:pt-0" />
-    </div>
-  );
-};
 
 export default function Home() {
   const [isPremium, setIsPremium] = useState(false);
@@ -359,14 +275,7 @@ export default function Home() {
       "min-h-screen transition-colors duration-500 font-sans",
       isPremium ? "dark bg-slate-950 text-slate-50" : "bg-slate-50 text-slate-900"
     )}>
-      {/* Ad Banners */}
-      <div className="hidden 2xl:block fixed left-4 top-1/2 -translate-y-1/2 w-[160px] h-[600px] z-50">
-        <AdsterraBanner />
-      </div>
-      <div className="hidden 2xl:block fixed right-4 top-1/2 -translate-y-1/2 w-[160px] h-[600px] z-50">
-        <AdsterraBanner />
-      </div>
-      <BottomStickyAd />
+
 
       {/* Header */}
       <header className={clsx(
