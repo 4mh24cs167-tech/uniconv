@@ -96,10 +96,11 @@ class MediaService:
                 mask_w = int(w * 0.35)
                 
                 if position == "gemini":
-                    logo_w = max(int(vw * 0.12), 1)
-                    logo_h = max(int(vh * 0.08), 1)
-                    lx = vw - logo_w - max(int(vw * 0.01), 1)
-                    ly = vh - logo_h - max(int(vh * 0.01), 1)
+                    mask_h = int(h * 0.08)
+                    mask_w = int(w * 0.15)
+                    y1 = max(0, h - mask_h - int(h * 0.01))
+                    x1 = max(0, w - mask_w - int(w * 0.01))
+                    mask[y1:h-int(h*0.01), x1:w-int(w*0.01)] = 255
                 elif position == "top_left":
                     mask[0:mask_h, 0:mask_w] = 255
                 elif position == "top_right":
