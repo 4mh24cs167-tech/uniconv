@@ -401,3 +401,31 @@ class PDFService:
         except Exception as e:
             print(f"Error removing metadata: {e}")
             return False
+
+    @staticmethod
+    def html_to_pdf(input_data: str, output_path: str, is_url: bool = False) -> bool:
+        """
+        Converts an HTML file or URL to PDF using pdfkit (wkhtmltopdf).
+        """
+        try:
+            import pdfkit
+            options = {
+                'page-size': 'A4',
+                'margin-top': '0mm',
+                'margin-right': '0mm',
+                'margin-bottom': '0mm',
+                'margin-left': '0mm',
+                'encoding': "UTF-8",
+                'enable-local-file-access': None
+            }
+            if is_url:
+                pdfkit.from_url(input_data, output_path, options=options)
+            else:
+                pdfkit.from_file(input_data, output_path, options=options)
+            return True
+        except ImportError:
+            print("pdfkit is not installed.")
+            return False
+        except Exception as e:
+            print(f"Error converting HTML to PDF: {e}")
+            return False

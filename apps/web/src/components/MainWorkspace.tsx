@@ -167,6 +167,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
       "extract-text-ocr": { view: "UNIVERSAL_CONVERTER", title: "Extract Text (OCR)", targetFormat: "txt" },
       "watermark-remover": { view: "WATERMARK_REMOVER", title: "Watermark Remover" },
       "extract-audio": { view: "UNIVERSAL_CONVERTER", title: "Extract Audio", targetFormat: "mp3" },
+      "html-to-pdf": { view: "UNIVERSAL_CONVERTER", title: "HTML to PDF", targetFormat: "pdf" },
       "unlock-pdf": { view: "UNIVERSAL_CONVERTER", title: "Unlock PDF", targetFormat: "pdf" },
     };
 
@@ -229,6 +230,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [showPremiumGate, setShowPremiumGate] = useState(false);
   const [rejectedFileSize, setRejectedFileSize] = useState(0);
+  const [htmlUrl, setHtmlUrl] = useState("");
 
   const [availableFormats, setAvailableFormats] = useState<string[]>([]);
   const [detectedCategory, setDetectedCategory] = useState<string>("Unknown");
@@ -326,10 +328,12 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
         configuration = { split_page: splitPage };
       } else if (view === "WATERMARK_REMOVER") {
         configuration = { position: watermarkPos };
+      } else if (activeToolTitle === "HTML to PDF" && htmlUrl) {
+        configuration = { url: htmlUrl };
       }
 
       // 2. Create Job in FastAPI Backend
-      const res = await fetch(`${apiUrl}/api/jobs?file_id=${fileIds[0]}`, {
+      const res = await fetch(`${apiUrl}/api/jobs${fileIds.length > 0 ? '?file_id='+fileIds[0] : ''}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -628,6 +632,13 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
                 />
                 <ToolCard 
                   isPremium={isPremium}
+                  title="HTML to PDF" 
+                  description="Convert webpages in HTML to PDF. Enter the URL or upload an HTML file."
+                  icon={<FileText className="w-10 h-10" />}
+                  onClick={() => router.push("/html-to-pdf")}
+                />
+                <ToolCard 
+                  isPremium={isPremium}
                   title="Unlock PDF" 
                   description="Remove PDF password security, giving you the freedom to use your PDFs as you want."
                   icon={<FileText className="w-10 h-10" />}
@@ -916,6 +927,20 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
                 <div className="space-y-8 max-w-2xl mx-auto">
                   {!resultUrl ? (
                     <>
+                      {activeToolTitle === "HTML to PDF" && (
+                         <div className="mb-6 p-6 rounded-2xl border bg-white shadow-sm dark:bg-slate-900 dark:border-slate-800">
+                            <label className="block text-sm font-bold mb-3">Convert via URL</label>
+                            <div className="flex flex-col sm:flex-row gap-3">
+                               <input type="url" placeholder="https://example.com" 
+                                  className="flex-1 rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#e5322d] dark:bg-slate-800 dark:border-slate-700" 
+                                  value={htmlUrl} onChange={e => setHtmlUrl(e.target.value)} />
+                               <button onClick={handleProcess} className="bg-[#e5322d] hover:bg-[#cc2b27] text-white px-6 py-3 rounded-xl font-bold transition-colors whitespace-nowrap">
+                                 Convert URL
+                               </button>
+                            </div>
+                            <div className="text-center mt-6 mb-2 text-sm font-bold text-slate-400">OR UPLOAD HTML FILE BELOW</div>
+                         </div>
+                      )}
                       <UploadZone 
                         isPremium={isPremium}
                         multiple={activeToolTitle === "Merge PDF"}

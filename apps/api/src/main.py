@@ -184,7 +184,7 @@ class JobRequest(BaseModel):
 @app.post("/api/jobs")
 async def create_job(
     request: JobRequest,
-    file_id: str,
+    file_id: Optional[str] = None,
     user_id: Optional[str] = None, # Passed from frontend via auth token in reality
     background_tasks: BackgroundTasks = BackgroundTasks()
 ):
@@ -199,10 +199,12 @@ async def create_job(
         
     # --- LIMIT CHECKING LOGIC ---
     # 1. Fetch file metadata
-    file_res = supabase.table("files").select("size_bytes").eq("id", file_id).execute()
-    if not file_res.data:
-        raise HTTPException(status_code=404, detail="File not found")
-    file_size = file_res.data[0]["size_bytes"]
+    file_size = 0
+    if file_id:
+        file_res = supabase.table("files").select("size_bytes").eq("id", file_id).execute()
+        if not file_res.data:
+            raise HTTPException(status_code=404, detail="File not found")
+        file_size = file_res.data[0]["size_bytes"]
 
     # 2. Determine limits based on User Plan
     max_file_size = 350 * 1024 * 1024 # 350MB default for Free/Guest
@@ -227,7 +229,7 @@ async def create_job(
         raise HTTPException(status_code=413, detail=f"File exceeds maximum allowed size for your tier. ({max_file_size / (1024*1024)}MB)")
     
     # Extract input files array
-    input_ids = request.input_file_ids if request.input_file_ids else [file_id]
+    input_ids = request.input_file_ids if request.input_file_ids else ([file_id] if file_id else [])
     
     # ---------------------------
     
@@ -388,6 +390,16 @@ async def process_document_job(job_id: str):
                 output_path = os.path.join(temp_dir, output_filename)
                 from src.services.media_service import MediaService
                 success = MediaService.video_to_gif(input_paths[0], output_path)
+            elif tool == "HTML to PDF":
+                output_filename = f"processed_{job['id']}.pdf"
+                output_path = os.path.join(temp_dir, output_filename)
+                url = job.get("configuration", {}).get("url")
+                if url:
+                    success = PDFService.html_to_pdf(url, output_path, is_url=True)
+                elif input_paths:
+                    success = PDFService.html_to_pdf(input_paths[0], output_path, is_url=False)
+                else:
+                    raise Exception("No URL or HTML file provided")
             elif tool == "Extract Audio":
                 output_filename = f"processed_{job['id']}.mp3"
                 output_path = os.path.join(temp_dir, output_filename)
