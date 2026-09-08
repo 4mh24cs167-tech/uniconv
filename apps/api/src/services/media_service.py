@@ -188,3 +188,58 @@ class MediaService:
         except Exception as e:
             print(f"Error converting office to PDF: {e}")
             return False
+
+    @staticmethod
+    def compress_video(input_path: str, output_path: str) -> bool:
+        """
+        Compresses video file to reduce size using FFmpeg.
+        """
+        import subprocess
+        try:
+            command = [
+                "ffmpeg", "-y", "-i", input_path,
+                "-vcodec", "libx264", "-crf", "28", "-preset", "ultrafast",
+                "-acodec", "aac", "-b:a", "128k",
+                output_path
+            ]
+            res = subprocess.run(command, capture_output=True, text=True)
+            if res.returncode != 0:
+                print(f"FFMPEG ERROR: {res.stderr}")
+                return False
+            return True
+        except Exception as e:
+            print(f"Error compressing video: {e}")
+            return False
+
+    @staticmethod
+    def video_to_gif(input_path: str, output_path: str) -> bool:
+        """
+        Converts video file to GIF using FFmpeg.
+        """
+        import subprocess
+        try:
+            # First pass: generate a palette for better GIF quality
+            palette_path = input_path + "_palette.png"
+            command1 = [
+                "ffmpeg", "-y", "-i", input_path,
+                "-vf", "fps=10,scale=320:-1:flags=lanczos,palettegen",
+                palette_path
+            ]
+            subprocess.run(command1, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            
+            # Second pass: use palette to generate GIF
+            command2 = [
+                "ffmpeg", "-y", "-i", input_path, "-i", palette_path,
+                "-filter_complex", "fps=10,scale=320:-1:flags=lanczos[x];[x][1:v]paletteuse",
+                output_path
+            ]
+            subprocess.run(command2, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            
+            import os
+            if os.path.exists(palette_path):
+                os.remove(palette_path)
+                
+            return True
+        except Exception as e:
+            print(f"Error converting video to GIF: {e}")
+            return False

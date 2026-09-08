@@ -161,11 +161,12 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
       "excel-to-pdf": { view: "UNIVERSAL_CONVERTER", title: "Excel to PDF", targetFormat: "pdf" },
       "jpg-to-pdf": { view: "UNIVERSAL_CONVERTER", title: "JPG to PDF", targetFormat: "pdf" },
       "pdf-to-jpg": { view: "UNIVERSAL_CONVERTER", title: "PDF to JPG", targetFormat: "jpg" },
-      "compress-jpg": { view: "UNIVERSAL_CONVERTER", title: "Compress JPG", targetFormat: "jpg" },
+            "compress-jpg": { view: "UNIVERSAL_CONVERTER", title: "Compress JPG", targetFormat: "jpg" },
+      "compress-video": { view: "UNIVERSAL_CONVERTER", title: "Compress Video", targetFormat: "mp4" },
+      "video-to-gif": { view: "UNIVERSAL_CONVERTER", title: "Video to GIF", targetFormat: "gif" },
       "extract-text-ocr": { view: "UNIVERSAL_CONVERTER", title: "Extract Text (OCR)", targetFormat: "txt" },
       "watermark-remover": { view: "WATERMARK_REMOVER", title: "Watermark Remover" },
       "extract-audio": { view: "UNIVERSAL_CONVERTER", title: "Extract Audio", targetFormat: "mp3" },
-      "html-to-pdf": { view: "UNIVERSAL_CONVERTER", title: "HTML to PDF", targetFormat: "pdf" },
       "unlock-pdf": { view: "UNIVERSAL_CONVERTER", title: "Unlock PDF", targetFormat: "pdf" },
     };
 
@@ -606,17 +607,24 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
                 />
                 <ToolCard 
                   isPremium={isPremium}
+                  title="Compress Video" 
+                  description="Reduce video file size significantly while maintaining good visual quality."
+                  icon={<FileArchive className="w-10 h-10" />}
+                  onClick={() => router.push("/compress-video")}
+                />
+                <ToolCard 
+                  isPremium={isPremium}
+                  title="Video to GIF" 
+                  description="Convert MP4, MOV, and AVI videos into looping animated GIFs."
+                  icon={<FileImage className="w-10 h-10" />}
+                  onClick={() => router.push("/video-to-gif")}
+                />
+                <ToolCard 
+                  isPremium={isPremium}
                   title="Extract Audio" 
                   description="Extract high-quality audio (MP3, WAV) from any video file instantly."
                   icon={<FileArchive className="w-10 h-10" />}
                   onClick={() => router.push("/extract-audio")}
-                />
-                <ToolCard 
-                  isPremium={isPremium}
-                  title="HTML to PDF" 
-                  description="Convert webpages in HTML to PDF. Copy and paste the URL of the page you want."
-                  icon={<FileText className="w-10 h-10" />}
-                  onClick={() => router.push("/html-to-pdf")}
                 />
                 <ToolCard 
                   isPremium={isPremium}

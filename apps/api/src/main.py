@@ -373,6 +373,21 @@ async def process_document_job(job_id: str):
                 output_path = os.path.join(temp_dir, output_filename)
                 from src.services.image_service import ImageService
                 success = ImageService.jpg_to_pdf(input_paths, output_path)
+            elif tool == "Compress JPG":
+                output_filename = f"compressed_{job['id']}.jpg"
+                output_path = os.path.join(temp_dir, output_filename)
+                from src.services.image_service import ImageService
+                success = ImageService.compress_jpg(input_paths[0], output_path)
+            elif tool == "Compress Video":
+                output_filename = f"compressed_{job['id']}.mp4"
+                output_path = os.path.join(temp_dir, output_filename)
+                from src.services.media_service import MediaService
+                success = MediaService.compress_video(input_paths[0], output_path)
+            elif tool == "Video to GIF":
+                output_filename = f"converted_{job['id']}.gif"
+                output_path = os.path.join(temp_dir, output_filename)
+                from src.services.media_service import MediaService
+                success = MediaService.video_to_gif(input_paths[0], output_path)
             elif tool == "Extract Audio":
                 output_filename = f"processed_{job['id']}.mp3"
                 output_path = os.path.join(temp_dir, output_filename)
