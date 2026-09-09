@@ -18,3 +18,5 @@ APScheduler==3.10.4
 razorpay==1.4.1
 pytesseract==0.3.10
 pdfkit==1.0.0
+rembg==2.0.53
+

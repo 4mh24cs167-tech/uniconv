@@ -337,6 +337,11 @@ async def process_document_job(job_id: str):
                         for idx, file in enumerate(out_files):
                             zipf.write(file, f"part_{idx+1}.pdf")
                     success = True
+            elif tool == "Remove Background":
+                output_filename = f"nobg_{job['id']}.png"
+                output_path = os.path.join(temp_dir, output_filename)
+                from src.services.image_service import ImageService
+                success = ImageService.remove_background(input_paths[0], output_path)
             elif tool == "Compress JPG":
                 output_filename = f"processed_{job['id']}.jpg"
                 output_path = os.path.join(temp_dir, output_filename)
@@ -375,6 +380,11 @@ async def process_document_job(job_id: str):
                 output_path = os.path.join(temp_dir, output_filename)
                 from src.services.image_service import ImageService
                 success = ImageService.jpg_to_pdf(input_paths, output_path)
+            elif tool == "Remove Background":
+                output_filename = f"nobg_{job['id']}.png"
+                output_path = os.path.join(temp_dir, output_filename)
+                from src.services.image_service import ImageService
+                success = ImageService.remove_background(input_paths[0], output_path)
             elif tool == "Compress JPG":
                 output_filename = f"compressed_{job['id']}.jpg"
                 output_path = os.path.join(temp_dir, output_filename)

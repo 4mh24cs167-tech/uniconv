@@ -52,3 +52,23 @@ class ImageService:
         except Exception as e:
             print(f"Error converting JPG to PDF: {e}")
             return False
+
+    @staticmethod
+    def remove_background(input_path: str, output_path: str) -> bool:
+        """
+        Removes the background from an image using rembg.
+        """
+        try:
+            from rembg import remove
+            with open(input_path, 'rb') as i:
+                input_data = i.read()
+            output_data = remove(input_data)
+            with open(output_path, 'wb') as o:
+                o.write(output_data)
+            return True
+        except ImportError:
+            print("rembg is not installed.")
+            return False
+        except Exception as e:
+            print(f"Error removing background: {e}")
+            return False

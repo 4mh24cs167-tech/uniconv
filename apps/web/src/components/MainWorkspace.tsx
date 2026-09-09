@@ -164,6 +164,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
             "compress-jpg": { view: "UNIVERSAL_CONVERTER", title: "Compress JPG", targetFormat: "jpg" },
       "compress-video": { view: "UNIVERSAL_CONVERTER", title: "Compress Video", targetFormat: "mp4" },
       "video-to-gif": { view: "UNIVERSAL_CONVERTER", title: "Video to GIF", targetFormat: "gif" },
+      "remove-background": { view: "UNIVERSAL_CONVERTER", title: "Remove Background", targetFormat: "png" },
       "extract-text-ocr": { view: "UNIVERSAL_CONVERTER", title: "Extract Text (OCR)", targetFormat: "txt" },
       "watermark-remover": { view: "WATERMARK_REMOVER", title: "Watermark Remover" },
       "extract-audio": { view: "UNIVERSAL_CONVERTER", title: "Extract Audio", targetFormat: "mp3" },
@@ -608,6 +609,13 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
                   description="Automatically detect and remove watermarks from images or videos."
                   icon={<Eraser className="w-10 h-10" />}
                   onClick={() => router.push("/watermark-remover")}
+                />
+                <ToolCard 
+                  isPremium={isPremium}
+                  title="Remove Background" 
+                  description="Use AI to automatically remove the background from any image."
+                  icon={<FileImage className="w-10 h-10" />}
+                  onClick={() => router.push("/remove-background")}
                 />
                 <ToolCard 
                   isPremium={isPremium}
