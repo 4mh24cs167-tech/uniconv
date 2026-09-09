@@ -63,7 +63,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // If already authenticated and trying to hit login/register
-  if ((request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register') && session) {
+  if ((request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register') && isAuth) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
