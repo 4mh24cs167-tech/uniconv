@@ -69,10 +69,10 @@ const toolMappings: Record<string, { title: string, description: string, keyword
     description: "Convert every page of a PDF into high-quality JPG images.",
     keywords: ["pdf to jpg", "convert pdf to image", "pdf pages to jpg"]
   },
-  "compress-jpg": { 
-    title: "Compress JPG | Image Optimizer", 
+  "compress-image": { 
+    title: "Compress Image | Image Optimizer", 
     description: "Compress JPG, PNG, and WEBP images to reduce file size while maintaining quality.",
-    keywords: ["compress jpg", "image compressor", "reduce image size"]
+    keywords: ["compress image", "image compressor", "reduce image size"]
   },
   "extract-text-ocr": { 
     title: "Extract Text from Image (OCR) | UniConv", 

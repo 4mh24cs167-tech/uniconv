@@ -3,29 +3,50 @@ from typing import Optional
 
 class ImageService:
     @staticmethod
-    def compress_jpg(input_path: str, output_path: str, quality: int = 60) -> bool:
+    def compress_image(input_path: str, output_path: str, target_size_mb: Optional[float] = None) -> bool:
         """
-        Compresses a JPG file.
+        Compresses an image file. If target_size_mb is provided, it tries to adjust the quality to meet the target size.
         Requires Pillow. Gracefully fails if Pillow is not installed on this specific environment.
         """
         try:
             from PIL import Image
             
             with Image.open(input_path) as img:
-                # Convert to RGB if it's not (e.g., RGBA or P)
-                if img.mode in ("RGBA", "P"):
+                original_format = img.format or "JPEG"
+                if original_format == "JPEG" and img.mode in ("RGBA", "P"):
                     img = img.convert("RGB")
                     
-                img.save(output_path, "JPEG", optimize=True, quality=quality)
+                if not target_size_mb:
+                    img.save(output_path, format=original_format, optimize=True, quality=60)
+                    return True
+                
+                target_size_bytes = int(target_size_mb * 1024 * 1024)
+                low = 10
+                high = 95
+                best_quality = 60
+                
+                # Binary search for the right quality
+                for _ in range(7):  # Max 7 iterations
+                    mid = (low + high) // 2
+                    img.save(output_path, format=original_format, optimize=True, quality=mid)
+                    size = os.path.getsize(output_path)
+                    
+                    if size <= target_size_bytes:
+                        best_quality = mid
+                        low = mid + 1
+                    else:
+                        high = mid - 1
+                
+                # Save with best found quality
+                img.save(output_path, format=original_format, optimize=True, quality=best_quality)
             return True
         except ImportError:
-            print("Pillow is not installed. Please install Pillow to use JPG Compressor.")
-            # Fallback mock for environments without Pillow (e.g. Python 3.14 on Windows)
+            print("Pillow is not installed. Please install Pillow to use Image Compressor.")
             import shutil
             shutil.copy(input_path, output_path)
             return True
         except Exception as e:
-            print(f"Error compressing JPG: {e}")
+            print(f"Error compressing image: {e}")
             return False
             
     @staticmethod

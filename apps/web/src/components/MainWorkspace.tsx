@@ -142,6 +142,10 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
   // Watermark Remover state
   const [watermarkPos, setWatermarkPos] = useState<string>("bottom_right");
 
+  // Compressor state
+  const [compressSize, setCompressSize] = useState<string>("");
+  const [compressUnit, setCompressUnit] = useState<string>("KB");
+
   // Ad state
   const [ad, setAd] = useState<{image_url: string, target_url: string} | null>(null);
 
@@ -161,7 +165,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
       "excel-to-pdf": { view: "UNIVERSAL_CONVERTER", title: "Excel to PDF", targetFormat: "pdf" },
       "jpg-to-pdf": { view: "UNIVERSAL_CONVERTER", title: "JPG to PDF", targetFormat: "pdf" },
       "pdf-to-jpg": { view: "UNIVERSAL_CONVERTER", title: "PDF to JPG", targetFormat: "jpg" },
-            "compress-jpg": { view: "UNIVERSAL_CONVERTER", title: "Compress JPG", targetFormat: "jpg" },
+      "compress-image": { view: "UNIVERSAL_CONVERTER", title: "Compress Image" },
       "compress-video": { view: "UNIVERSAL_CONVERTER", title: "Compress Video", targetFormat: "mp4" },
       "video-to-gif": { view: "UNIVERSAL_CONVERTER", title: "Video to GIF", targetFormat: "gif" },
       "remove-background": { view: "UNIVERSAL_CONVERTER", title: "Remove Background", targetFormat: "png" },
@@ -331,6 +335,12 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
         configuration = { position: watermarkPos };
       } else if (activeToolTitle === "HTML to PDF" && htmlUrl) {
         configuration = { url: htmlUrl };
+      } else if (activeToolTitle === "Compress Image") {
+        let sizeMb = parseFloat(compressSize);
+        if (!isNaN(sizeMb)) {
+          if (compressUnit === "KB") sizeMb = sizeMb / 1024;
+          configuration = { target_size_mb: sizeMb };
+        }
       }
 
       // 2. Create Job in FastAPI Backend
@@ -584,10 +594,10 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
                 />
                 <ToolCard 
                   isPremium={isPremium}
-                  title="JPG Compressor" 
-                  description="Compress your JPG images to the smallest file size while keeping perfect quality."
+                  title="Image Compressor" 
+                  description="Compress your images to the smallest file size while keeping perfect quality. Specify custom target sizes."
                   icon={<FileImage className="w-10 h-10" />}
-                  onClick={() => router.push("/compress-jpg")}
+                  onClick={() => router.push("/compress-image")}
                 />
                 <ToolCard 
                   isPremium={isPremium}
@@ -1094,6 +1104,28 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
                                 onChange={(e) => setSplitPage(parseInt(e.target.value) || 1)}
                                 className="w-20 p-2 border rounded-md text-sm outline-none focus:border-blue-500"
                               />
+                            </div>
+                          )}
+
+                          {activeToolTitle === "Compress Image" && (
+                            <div className="flex-1 w-full flex items-center gap-3 bg-white p-2 rounded-lg border">
+                              <span className="text-sm font-medium text-slate-700 pl-2">Target Size:</span>
+                              <input 
+                                type="number" 
+                                min="1" 
+                                placeholder="Auto"
+                                value={compressSize}
+                                onChange={(e) => setCompressSize(e.target.value)}
+                                className="w-20 p-2 border rounded-md text-sm outline-none focus:border-blue-500"
+                              />
+                              <select 
+                                value={compressUnit} 
+                                onChange={(e) => setCompressUnit(e.target.value)}
+                                className="p-2 border rounded-md text-sm outline-none focus:border-blue-500"
+                              >
+                                <option value="KB">KB</option>
+                                <option value="MB">MB</option>
+                              </select>
                             </div>
                           )}
 

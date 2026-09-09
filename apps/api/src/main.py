@@ -342,11 +342,13 @@ async def process_document_job(job_id: str):
                 output_path = os.path.join(temp_dir, output_filename)
                 from src.services.image_service import ImageService
                 success = ImageService.remove_background(input_paths[0], output_path)
-            elif tool == "Compress JPG":
-                output_filename = f"processed_{job['id']}.jpg"
+            elif tool == "Compress Image":
+                ext = os.path.splitext(input_paths[0])[1] or ".jpg"
+                output_filename = f"compressed_{job['id']}{ext}"
                 output_path = os.path.join(temp_dir, output_filename)
+                target_size = job.get("configuration", {}).get("target_size_mb")
                 from src.services.image_service import ImageService
-                success = ImageService.compress_jpg(input_paths[0], output_path, quality=50)
+                success = ImageService.compress_image(input_paths[0], output_path, target_size_mb=target_size)
             elif tool == "Merge PDF":
                 output_filename = f"processed_{job['id']}.pdf"
                 output_path = os.path.join(temp_dir, output_filename)
@@ -380,16 +382,7 @@ async def process_document_job(job_id: str):
                 output_path = os.path.join(temp_dir, output_filename)
                 from src.services.image_service import ImageService
                 success = ImageService.jpg_to_pdf(input_paths, output_path)
-            elif tool == "Remove Background":
-                output_filename = f"nobg_{job['id']}.png"
-                output_path = os.path.join(temp_dir, output_filename)
-                from src.services.image_service import ImageService
-                success = ImageService.remove_background(input_paths[0], output_path)
-            elif tool == "Compress JPG":
-                output_filename = f"compressed_{job['id']}.jpg"
-                output_path = os.path.join(temp_dir, output_filename)
-                from src.services.image_service import ImageService
-                success = ImageService.compress_jpg(input_paths[0], output_path)
+
             elif tool == "Compress Video":
                 output_filename = f"compressed_{job['id']}.mp4"
                 output_path = os.path.join(temp_dir, output_filename)
