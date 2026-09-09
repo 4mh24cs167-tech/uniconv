@@ -235,7 +235,6 @@ class MediaService:
                 
             # Force exact size by padding zeroes at the end (safe for MP4 containers)
             if target_size_mb:
-                import os
                 target_size_bytes = int(target_size_mb * 1024 * 1024)
                 current_size = os.path.getsize(output_path)
                 if current_size < target_size_bytes:

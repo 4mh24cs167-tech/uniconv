@@ -41,7 +41,6 @@ class ImageService:
                 img.save(output_path, format=original_format, optimize=True, quality=best_quality)
                 
                 # Force exact size by padding zeroes at the end (safe for most image formats)
-                import os
                 current_size = os.path.getsize(output_path)
                 if current_size < target_size_bytes:
                     with open(output_path, 'ab') as f:
