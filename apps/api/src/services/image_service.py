@@ -39,9 +39,20 @@ class ImageService:
                 
                 # Save with best found quality
                 img.save(output_path, format=original_format, optimize=True, quality=best_quality)
+                current_size = os.path.getsize(output_path)
+                
+                # If still too large (e.g., PNG lossless or minimum quality is too big), scale down dimensions
+                scale = 0.8
+                while current_size > target_size_bytes and img.width > 20 and img.height > 20:
+                    new_size = (int(img.width * scale), int(img.height * scale))
+                    if getattr(Image, 'Resampling', None):
+                        img = img.resize(new_size, Image.Resampling.LANCZOS)
+                    else:
+                        img = img.resize(new_size, Image.LANCZOS)
+                    img.save(output_path, format=original_format, optimize=True, quality=best_quality)
+                    current_size = os.path.getsize(output_path)
                 
                 # Force exact size by padding zeroes at the end (safe for most image formats)
-                current_size = os.path.getsize(output_path)
                 if current_size < target_size_bytes:
                     with open(output_path, 'ab') as f:
                         f.write(b'\0' * (target_size_bytes - current_size))
