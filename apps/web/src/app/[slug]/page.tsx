@@ -79,6 +79,21 @@ const toolMappings: Record<string, { title: string, description: string, keyword
     description: "Scan images or PDFs and use A.I. to extract editable text files instantly.",
     keywords: ["ocr online", "extract text from image", "image to text"]
   },
+  "compress-video": { 
+    title: "Compress Video | Reduce File Size", 
+    description: "Reduce video file size significantly while maintaining good visual quality.",
+    keywords: ["compress video", "reduce video size", "shrink video"]
+  },
+  "video-to-gif": { 
+    title: "Video to GIF Converter | UniConv", 
+    description: "Convert MP4, MOV, and AVI videos into looping animated GIFs.",
+    keywords: ["video to gif", "convert video to gif", "make gif from video"]
+  },
+  "remove-background": { 
+    title: "Remove Background | A.I. Image Editor", 
+    description: "Use AI to automatically remove the background from any image.",
+    keywords: ["remove background", "bg remover", "transparent background"]
+  },
   "watermark-remover": { 
     title: "Watermark Remover | A.I. Video & Image Editor", 
     description: "Automatically detect and remove watermarks from images and videos using AI.",

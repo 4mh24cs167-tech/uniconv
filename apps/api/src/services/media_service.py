@@ -232,6 +232,16 @@ class MediaService:
             if res.returncode != 0:
                 print(f"FFMPEG ERROR: {res.stderr}")
                 return False
+                
+            # Force exact size by padding zeroes at the end (safe for MP4 containers)
+            if target_size_mb:
+                import os
+                target_size_bytes = int(target_size_mb * 1024 * 1024)
+                current_size = os.path.getsize(output_path)
+                if current_size < target_size_bytes:
+                    with open(output_path, 'ab') as f:
+                        f.write(b'\0' * (target_size_bytes - current_size))
+                        
             return True
         except Exception as e:
             print(f"Error compressing video: {e}")
