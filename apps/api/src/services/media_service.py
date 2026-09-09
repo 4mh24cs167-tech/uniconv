@@ -190,18 +190,44 @@ class MediaService:
             return False
 
     @staticmethod
-    def compress_video(input_path: str, output_path: str) -> bool:
+    def compress_video(input_path: str, output_path: str, target_size_mb: float = None) -> bool:
         """
         Compresses video file to reduce size using FFmpeg.
         """
         import subprocess
         try:
-            command = [
-                "ffmpeg", "-y", "-i", input_path,
-                "-vcodec", "libx264", "-crf", "28", "-preset", "ultrafast",
-                "-acodec", "aac", "-b:a", "128k",
-                output_path
-            ]
+            if target_size_mb:
+                # Calculate target bitrate
+                import json as _json
+                probe_cmd = [
+                    "ffprobe", "-v", "quiet", "-print_format", "json",
+                    "-show_format", input_path
+                ]
+                probe_result = subprocess.run(probe_cmd, capture_output=True, text=True)
+                probe_data = _json.loads(probe_result.stdout)
+                duration = float(probe_data["format"]["duration"])
+                
+                # Target size in kb (kilobits)
+                target_kb = target_size_mb * 8192
+                target_total_bitrate = target_kb / duration
+                
+                audio_bitrate = 128
+                video_bitrate = max(100, int(target_total_bitrate - audio_bitrate))
+                
+                command = [
+                    "ffmpeg", "-y", "-i", input_path,
+                    "-b:v", f"{video_bitrate}k", "-maxrate", f"{int(video_bitrate * 1.5)}k",
+                    "-bufsize", f"{video_bitrate * 2}k",
+                    "-c:a", "aac", "-b:a", f"{audio_bitrate}k",
+                    output_path
+                ]
+            else:
+                command = [
+                    "ffmpeg", "-y", "-i", input_path,
+                    "-vcodec", "libx264", "-crf", "28", "-preset", "ultrafast",
+                    "-acodec", "aac", "-b:a", "128k",
+                    output_path
+                ]
             res = subprocess.run(command, capture_output=True, text=True)
             if res.returncode != 0:
                 print(f"FFMPEG ERROR: {res.stderr}")

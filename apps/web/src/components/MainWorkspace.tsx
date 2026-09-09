@@ -335,7 +335,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
         configuration = { position: watermarkPos };
       } else if (activeToolTitle === "HTML to PDF" && htmlUrl) {
         configuration = { url: htmlUrl };
-      } else if (activeToolTitle === "Compress Image") {
+      } else if (activeToolTitle === "Compress Image" || activeToolTitle === "Compress Video") {
         let sizeMb = parseFloat(compressSize);
         if (!isNaN(sizeMb)) {
           if (compressUnit === "KB") sizeMb = sizeMb / 1024;
@@ -1107,7 +1107,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
                             </div>
                           )}
 
-                          {activeToolTitle === "Compress Image" && (
+                          {(activeToolTitle === "Compress Image" || activeToolTitle === "Compress Video") && (
                             <div className="flex-1 w-full flex items-center gap-3 bg-white p-2 rounded-lg border">
                               <span className="text-sm font-medium text-slate-700 pl-2">Target Size:</span>
                               <input 

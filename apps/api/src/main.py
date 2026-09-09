@@ -386,8 +386,9 @@ async def process_document_job(job_id: str):
             elif tool == "Compress Video":
                 output_filename = f"compressed_{job['id']}.mp4"
                 output_path = os.path.join(temp_dir, output_filename)
+                target_size = job.get("configuration", {}).get("target_size_mb")
                 from src.services.media_service import MediaService
-                success = MediaService.compress_video(input_paths[0], output_path)
+                success = MediaService.compress_video(input_paths[0], output_path, target_size_mb=target_size)
             elif tool == "Video to GIF":
                 output_filename = f"converted_{job['id']}.gif"
                 output_path = os.path.join(temp_dir, output_filename)
