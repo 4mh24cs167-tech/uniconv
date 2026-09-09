@@ -26,22 +26,29 @@ const AdsterraBanner = () => {
     // Clear any existing ad to prevent duplicates on re-renders
     banner.current.innerHTML = '';
 
-    const conf = document.createElement('script');
-    conf.type = 'text/javascript';
-    conf.innerHTML = `atOptions = {
-      'key' : 'ac26a747103aa507dba80d5383d1b753',
-      'format' : 'iframe',
-      'height' : 600,
-      'width' : 160,
-      'params' : {}
-    };`;
-
-    const script = document.createElement('script');
-    script.type = 'text/javascript';
-    script.src = 'https://www.highrevenueformat.com/ac26a747103aa507dba80d5383d1b753/invoke.js';
-    
-    banner.current.append(conf);
-    banner.current.append(script);
+    const html = `
+      <html>
+        <body style="margin:0;padding:0;background:transparent;">
+          <script type="text/javascript">
+            atOptions = {
+              'key' : 'ac26a747103aa507dba80d5383d1b753',
+              'format' : 'iframe',
+              'height' : 600,
+              'width' : 160,
+              'params' : {}
+            };
+          </script>
+          <script type="text/javascript" src="https://www.highrevenueformat.com/ac26a747103aa507dba80d5383d1b753/invoke.js"></script>
+        </body>
+      </html>
+    `;
+    const iframe = document.createElement('iframe');
+    iframe.srcdoc = html;
+    iframe.sandbox.add('allow-scripts', 'allow-same-origin');
+    iframe.width = "160";
+    iframe.height = "600";
+    iframe.style.border = "none";
+    banner.current.append(iframe);
   }, [isVisible]);
 
   if (!isVisible) return null;
@@ -67,22 +74,29 @@ const BottomStickyAd = () => {
     if (!banner.current || !isVisible) return;
     banner.current.innerHTML = '';
     
-    const conf = document.createElement('script');
-    conf.type = 'text/javascript';
-    conf.innerHTML = `atOptions = {
-      'key' : 'cae542104f9271b9d12d8da545808b93',
-      'format' : 'iframe',
-      'height' : 50,
-      'width' : 320,
-      'params' : {}
-    };`;
-
-    const script = document.createElement('script');
-    script.type = 'text/javascript';
-    script.src = 'https://www.highrevenueformat.com/cae542104f9271b9d12d8da545808b93/invoke.js';
-    
-    banner.current.append(conf);
-    banner.current.append(script);
+    const html = `
+      <html>
+        <body style="margin:0;padding:0;background:transparent;">
+          <script type="text/javascript">
+            atOptions = {
+              'key' : 'cae542104f9271b9d12d8da545808b93',
+              'format' : 'iframe',
+              'height' : 50,
+              'width' : 320,
+              'params' : {}
+            };
+          </script>
+          <script type="text/javascript" src="https://www.highrevenueformat.com/cae542104f9271b9d12d8da545808b93/invoke.js"></script>
+        </body>
+      </html>
+    `;
+    const iframe = document.createElement('iframe');
+    iframe.srcdoc = html;
+    iframe.sandbox.add('allow-scripts', 'allow-same-origin');
+    iframe.width = "320";
+    iframe.height = "50";
+    iframe.style.border = "none";
+    banner.current.append(iframe);
   }, [isVisible]);
 
   if (!isVisible) return null;

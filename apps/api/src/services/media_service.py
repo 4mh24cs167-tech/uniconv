@@ -2,6 +2,8 @@ import os
 import subprocess
 
 class MediaService:
+    DEFAULT_TIMEOUT = 120 # 2 minute hard timeout per subprocess
+    
     @staticmethod
     def extract_audio(input_path: str, output_path: str) -> bool:
         """
@@ -9,13 +11,13 @@ class MediaService:
         """
         try:
             command = [
-                "ffmpeg", "-y", "-i", input_path,
+                "ffmpeg", "-nostdin", "-y", "-protocol_whitelist", "file", "-i", input_path,
                 "-q:a", "0", "-map", "a",
                 output_path
             ]
-            subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(command, check=True, timeout=MediaService.DEFAULT_TIMEOUT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             return True
-        except Exception as e:
+        except (subprocess.TimeoutExpired, subprocess.CalledProcessError) as e:
             print(f"Error extracting audio: {e}")
             return False
 
@@ -30,10 +32,10 @@ class MediaService:
                 # Video: Use FFmpeg delogo - must probe dimensions first
                 import json as _json
                 probe_cmd = [
-                    "ffprobe", "-v", "quiet", "-print_format", "json",
+                    "ffprobe", "-nostdin", "-protocol_whitelist", "file", "-v", "quiet", "-print_format", "json",
                     "-show_streams", "-select_streams", "v:0", input_path
                 ]
-                probe_result = subprocess.run(probe_cmd, capture_output=True, text=True)
+                probe_result = subprocess.run(probe_cmd, capture_output=True, text=True, timeout=MediaService.DEFAULT_TIMEOUT)
                 probe_data = _json.loads(probe_result.stdout)
                 vw = int(probe_data["streams"][0]["width"])
                 vh = int(probe_data["streams"][0]["height"])
@@ -71,14 +73,14 @@ class MediaService:
                     
                 vf = f"delogo=x={lx}:y={ly}:w={logo_w}:h={logo_h}"
                 command = [
-                    "ffmpeg", "-y", "-i", input_path,
+                    "ffmpeg", "-nostdin", "-y", "-protocol_whitelist", "file", "-i", input_path,
                     "-vf", vf,
                     "-preset", "ultrafast",
                     "-c:a", "copy",
                     output_path
                 ]
                 # Capture output to help debug if it fails again
-                res = subprocess.run(command, capture_output=True, text=True)
+                res = subprocess.run(command, capture_output=True, text=True, timeout=MediaService.DEFAULT_TIMEOUT)
                 if res.returncode != 0:
                     print(f"FFMPEG ERROR: {res.stderr}")
                     return False
@@ -145,11 +147,11 @@ class MediaService:
                 codec_args = ["-c:a", "wmav2"]
                 
             command = [
-                "ffmpeg", "-y", "-i", input_path,
+                "ffmpeg", "-nostdin", "-y", "-protocol_whitelist", "file", "-i", input_path,
                 "-vn"
             ] + codec_args + [output_path]
             
-            subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(command, check=True, timeout=MediaService.DEFAULT_TIMEOUT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             return True
         except Exception as e:
             print(f"Error converting audio: {e}")
@@ -172,10 +174,13 @@ class MediaService:
             
             # On some systems, the command is 'soffice'
             try:
-                subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                subprocess.run(command, check=True, timeout=MediaService.DEFAULT_TIMEOUT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             except FileNotFoundError:
                 command[0] = "soffice"
-                subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                subprocess.run(command, check=True, timeout=MediaService.DEFAULT_TIMEOUT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except subprocess.TimeoutExpired:
+                print("LibreOffice conversion timed out")
+                return False
                 
             # Libreoffice names the output file the same as input but with .pdf
             base_name = os.path.splitext(os.path.basename(input_path))[0]
@@ -200,10 +205,10 @@ class MediaService:
                 # Calculate target bitrate
                 import json as _json
                 probe_cmd = [
-                    "ffprobe", "-v", "quiet", "-print_format", "json",
+                    "ffprobe", "-nostdin", "-protocol_whitelist", "file", "-v", "quiet", "-print_format", "json",
                     "-show_format", input_path
                 ]
-                probe_result = subprocess.run(probe_cmd, capture_output=True, text=True)
+                probe_result = subprocess.run(probe_cmd, capture_output=True, text=True, timeout=MediaService.DEFAULT_TIMEOUT)
                 probe_data = _json.loads(probe_result.stdout)
                 duration = float(probe_data["format"]["duration"])
                 
@@ -215,7 +220,7 @@ class MediaService:
                 video_bitrate = max(100, int(target_total_bitrate - audio_bitrate))
                 
                 command = [
-                    "ffmpeg", "-y", "-i", input_path,
+                    "ffmpeg", "-nostdin", "-y", "-protocol_whitelist", "file", "-i", input_path,
                     "-b:v", f"{video_bitrate}k", "-maxrate", f"{int(video_bitrate * 1.5)}k",
                     "-bufsize", f"{video_bitrate * 2}k",
                     "-c:a", "aac", "-b:a", f"{audio_bitrate}k",
@@ -223,12 +228,12 @@ class MediaService:
                 ]
             else:
                 command = [
-                    "ffmpeg", "-y", "-i", input_path,
+                    "ffmpeg", "-nostdin", "-y", "-protocol_whitelist", "file", "-i", input_path,
                     "-vcodec", "libx264", "-crf", "28", "-preset", "ultrafast",
                     "-acodec", "aac", "-b:a", "128k",
                     output_path
                 ]
-            res = subprocess.run(command, capture_output=True, text=True)
+            res = subprocess.run(command, capture_output=True, text=True, timeout=MediaService.DEFAULT_TIMEOUT)
             if res.returncode != 0:
                 print(f"FFMPEG ERROR: {res.stderr}")
                 return False
@@ -256,19 +261,19 @@ class MediaService:
             # First pass: generate a palette for better GIF quality
             palette_path = input_path + "_palette.png"
             command1 = [
-                "ffmpeg", "-y", "-i", input_path,
+                "ffmpeg", "-nostdin", "-y", "-protocol_whitelist", "file", "-i", input_path,
                 "-vf", "fps=10,scale=320:-1:flags=lanczos,palettegen",
                 palette_path
             ]
-            subprocess.run(command1, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(command1, check=True, timeout=MediaService.DEFAULT_TIMEOUT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             
             # Second pass: use palette to generate GIF
             command2 = [
-                "ffmpeg", "-y", "-i", input_path, "-i", palette_path,
+                "ffmpeg", "-nostdin", "-y", "-protocol_whitelist", "file", "-i", input_path, "-i", palette_path,
                 "-filter_complex", "fps=10,scale=320:-1:flags=lanczos[x];[x][1:v]paletteuse",
                 output_path
             ]
-            subprocess.run(command2, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(command2, check=True, timeout=MediaService.DEFAULT_TIMEOUT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             
             import os
             if os.path.exists(palette_path):

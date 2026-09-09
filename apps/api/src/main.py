@@ -12,10 +12,10 @@ app = FastAPI(title="Document Productivity API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, restrict to frontend URL
+    allow_origins=[os.getenv("FRONTEND_URL", "https://uniconv.vercel.app").rstrip("/"), "http://localhost:3000"],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 url: str = os.getenv("SUPABASE_URL", "")
@@ -157,16 +157,19 @@ async def razorpay_webhook(request: Request, x_razorpay_signature: str = Header(
             notes = payment_entity.get("notes", {})
             
             user_id = notes.get("user_id")
-            plan_id = notes.get("plan_id")
+            plan_name = notes.get("plan_id")
             
-            if user_id and plan_id:
-                # Update user in DB
-                supabase.table("users").update({
-                    "plan": plan_id.lower(),
-                    "updated_at": datetime.now(timezone.utc).isoformat()
-                }).eq("id", user_id).execute()
-                
-                print(f"Automatically upgraded user {user_id} to {plan_id} via Webhook!")
+            if user_id and plan_name:
+                # Update user in DB with exact plan.id
+                plan_res = supabase.table("plans").select("id").eq("name", plan_name.capitalize()).execute()
+                if plan_res.data:
+                    plan_id = plan_res.data[0]["id"]
+                    supabase.table("users").update({
+                        "plan_id": plan_id,
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }).eq("id", user_id).execute()
+                    
+                    print(f"Automatically upgraded user {user_id} to {plan_name} via Webhook!")
                 
         return {"status": "success"}
     except razorpay.errors.SignatureVerificationError:
@@ -181,11 +184,27 @@ class JobRequest(BaseModel):
     input_file_ids: Optional[list[str]] = None
     configuration: Optional[dict] = None
 
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Security
+
+security = HTTPBearer(auto_error=False)
+
+async def get_current_user_optional(creds: Optional[HTTPAuthorizationCredentials] = Security(security)):
+    if not creds or not supabase:
+        return None
+    try:
+        res = supabase.auth.get_user(creds.credentials)
+        if res and res.user:
+            return {"id": res.user.id, "email": res.user.email}
+    except Exception:
+        pass
+    return None
+
 @app.post("/api/jobs")
 async def create_job(
     request: JobRequest,
     file_id: Optional[str] = None,
-    user_id: Optional[str] = None, # Passed from frontend via auth token in reality
+    current_user: Optional[dict] = Depends(get_current_user_optional),
     background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """
@@ -248,8 +267,12 @@ async def create_job(
         "status": "QUEUED"
     }
     
+    user_id = current_user["id"] if current_user else None
+    
     if user_id:
         job_data["user_id"] = user_id
+    else:
+        job_data["user_id"] = None
     
     try:
         response = supabase.table("processing_jobs").insert(job_data).execute()
@@ -298,7 +321,12 @@ async def process_document_job(job_id: str):
                 
                 # 2. Download from Supabase Storage
                 storage_res = supabase.storage.from_("uploads").download(storage_key)
-                in_path = os.path.join(temp_dir, f"{f_id}_{file_metadata['filename']}")
+                
+                import re
+                safe_filename = os.path.basename(file_metadata['filename'])
+                safe_filename = re.sub(r'[^a-zA-Z0-9._-]', '_', safe_filename)
+                
+                in_path = os.path.join(temp_dir, f"{f_id}_{safe_filename}")
                 with open(in_path, "wb") as f:
                     f.write(storage_res)
                 input_paths.append(in_path)
@@ -481,7 +509,7 @@ async def process_document_job(job_id: str):
                 
             # 5. Create Result File Record in DB
             result_file_res = supabase.table("files").insert({
-                "user_id": job["user_id"],
+                "user_id": job.get("user_id"),
                 "filename": output_filename,
                 "original_filename": output_filename,
                 "size_bytes": os.path.getsize(output_path),

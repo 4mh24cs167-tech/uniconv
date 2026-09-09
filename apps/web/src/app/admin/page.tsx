@@ -55,28 +55,27 @@ export default function AdminPanel() {
 
   const handleUpdatePlan = async (userId: string, newPlanName: string) => {
     try {
-      // 1. Find the plan_id for the requested plan
-      const { data: planData, error: planError } = await supabase
-        .from("plans")
-        .select("id")
-        .eq("name", newPlanName)
-        .single();
-        
-      if (planError || !planData) {
-        alert(`Error finding plan ${newPlanName}`);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert("Not authenticated");
         return;
       }
       
-      // 2. Update the user
-      const { error: updateError } = await supabase
-        .from("users")
-        .update({ plan_id: planData.id })
-        .eq("id", userId);
-        
-      if (updateError) {
-        alert("Failed to update user plan.");
-        console.error(updateError);
-        return;
+      const res = await fetch("/api/admin/upgrade-user", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+            targetUserId: userId,
+            newPlanName: newPlanName
+        })
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to upgrade user");
       }
 
       // Send email notification
@@ -102,9 +101,9 @@ export default function AdminPanel() {
         }
         return u;
       }));
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("An error occurred");
+      alert(e.message || "An error occurred");
     }
   };
 

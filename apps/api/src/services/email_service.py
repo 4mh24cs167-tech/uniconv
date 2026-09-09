@@ -15,18 +15,22 @@ class EmailService:
         sender_email = os.getenv("SMTP_EMAIL")
         sender_password = os.getenv("SMTP_PASSWORD")
         
-        if not sender_email or not sender_password:
-            print("Email credentials not configured. Skipping email notification.")
+        import re
+        import html
+        
+        if not sender_email or not sender_password or not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", user_email):
+            print("Email credentials missing or invalid user email. Skipping email notification.")
             return False
             
-        subject = f"Welcome to UniConv {plan_name}!"
+        safe_plan = "Pro" if "pro" in plan_name.lower() else "Premium"
+        subject = f"Welcome to UniConv {safe_plan}!"
         body = f"""
         <html>
             <body>
                 <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background-color: #f9f9f9; border-radius: 10px;">
                     <h2 style="color: #4f46e5;">You have been upgraded! 🚀</h2>
                     <p style="font-size: 16px; color: #333;">Hello,</p>
-                    <p style="font-size: 16px; color: #333;">Your account has been successfully upgraded to the <strong>{plan_name}</strong> plan.</p>
+                    <p style="font-size: 16px; color: #333;">Your account has been successfully upgraded to the <strong>{html.escape(safe_plan)}</strong> plan.</p>
                     <p style="font-size: 16px; color: #333;">You now have access to higher file size limits and premium features. Thank you for using UniConv!</p>
                     <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;" />
                     <p style="font-size: 12px; color: #888;">If you did not request this change, please contact our support team.</p>

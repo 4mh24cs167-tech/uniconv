@@ -54,10 +54,11 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  const isAuth = !!user && !error;
 
   // If trying to access a protected route without being authenticated
-  if (request.nextUrl.pathname.startsWith('/dashboard') && !session) {
+  if ((request.nextUrl.pathname.startsWith('/dashboard') || request.nextUrl.pathname.startsWith('/admin')) && !isAuth) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
@@ -70,5 +71,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/login', '/register'],
+  matcher: ['/dashboard/:path*', '/admin/:path*', '/login', '/register'],
 };

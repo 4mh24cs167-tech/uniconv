@@ -11,8 +11,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    if (!format) {
-      return NextResponse.json({ error: "No target format provided" }, { status: 400 });
+    if (!format || !/^[a-zA-Z0-9]+$/.test(format)) {
+      return NextResponse.json({ error: "Invalid target format" }, { status: 400 });
+    }
+    
+    if (file.size > 20 * 1024 * 1024) {
+      return NextResponse.json({ error: "File too large for synchronous conversion" }, { status: 413 });
     }
 
     const buffer = await file.arrayBuffer();
@@ -23,7 +27,7 @@ export async function POST(req: NextRequest) {
     let contentType = `application/octet-stream`;
     
     if (file.type.startsWith("image/") && ["png", "jpg", "jpeg", "webp"].includes(format)) {
-      const sharpInstance = sharp(Buffer.from(buffer));
+      const sharpInstance = sharp(Buffer.from(buffer), { failOn: 'truncated' });
       
       switch (format) {
         case "png":

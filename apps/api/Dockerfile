@@ -23,6 +23,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the FastAPI backend code into the container
 COPY . .
 
+# Create a non-root user and switch to it
+RUN useradd -r appuser && chown -R appuser /app
+USER appuser
+
 # Expose the port FastAPI runs on
 EXPOSE 8000
 

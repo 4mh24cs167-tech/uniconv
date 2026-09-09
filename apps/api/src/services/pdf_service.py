@@ -119,8 +119,9 @@ class PDFService:
                         for table in tables:
                             if not table or not table[0]: continue
                             df = pd.DataFrame(table[1:], columns=table[0])
-                            # Openpyxl limits sheet names to 31 chars
-                            sheet_name = f"Table_{table_count+1}"[:31]
+                            # Openpyxl limits sheet names to 31 chars and invalidates certain characters
+                            import re
+                            sheet_name = re.sub(r'[\\/*?:\[\]]', '', f"Table_{table_count+1}")[:31]
                             df.to_excel(writer, sheet_name=sheet_name, index=False)
                             table_count += 1
                             del df
@@ -249,8 +250,8 @@ class PDFService:
                 doc.close()
             else:
                 # Assume it's an image
-                img = Image.open(input_path)
-                text_result = pytesseract.image_to_string(img)
+                with Image.open(input_path) as img:
+                    text_result = pytesseract.image_to_string(img)
                 
             # Write text to output .txt file
             with open(output_path, "w", encoding="utf-8") as f:
@@ -324,7 +325,9 @@ class PDFService:
                 perms &= ~fitz.PDF_PERM_FORM
             
             # Requires encryption to set permissions
-            doc.save(output_path, encryption=fitz.PDF_ENCRYPT_AES_256, permissions=perms, owner_pw="admin")
+            import secrets
+            owner_pw = secrets.token_urlsafe(32)
+            doc.save(output_path, encryption=fitz.PDF_ENCRYPT_AES_256, permissions=perms, owner_pw=owner_pw)
             doc.close()
             return True
         except Exception as e:

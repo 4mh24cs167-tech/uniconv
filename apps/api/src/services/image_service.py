@@ -76,10 +76,12 @@ class ImageService:
             
             image_list = []
             for path in input_paths:
-                img = Image.open(path)
-                if img.mode in ("RGBA", "P"):
-                    img = img.convert("RGB")
-                image_list.append(img)
+                with Image.open(path) as img:
+                    if img.mode in ("RGBA", "P"):
+                        loaded_img = img.convert("RGB")
+                    else:
+                        loaded_img = img.copy()
+                    image_list.append(loaded_img)
                 
             if image_list:
                 image_list[0].save(output_path, "PDF", resolution=100.0, save_all=True, append_images=image_list[1:])
