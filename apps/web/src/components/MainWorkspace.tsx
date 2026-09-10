@@ -279,7 +279,11 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
   };
 
   const handleProcess = async () => {
-    if (files.length === 0) return;
+    const isTextBasedTool = (activeToolTitle === 'HTML to PDF' && htmlUrl) || (activeToolTitle === 'Text to Speech' && ttsText) || (activeToolTitle === 'QR Code Generator' && qrUrl);
+    if (files.length === 0 && !isTextBasedTool) {
+      setError('Please select at least one file or enter required text.');
+      return;
+    }
     setIsProcessing(true);
     setProgress(10);
     setError(null);
