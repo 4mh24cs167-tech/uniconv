@@ -113,6 +113,21 @@ const toolMappings: Record<string, { title: string, description: string, keyword
     title: "Unlock PDF | Remove PDF Password", 
     description: "Remove passwords and security restrictions from your PDF files.",
     keywords: ["unlock pdf", "remove pdf password", "decrypt pdf"]
+  },
+  "text-to-speech": {
+    title: "Text to Speech | Free Online TTS",
+    description: "Convert text to high-quality MP3 audio instantly using Google's TTS engine.",
+    keywords: ["text to speech", "tts", "convert text to audio"]
+  },
+  "qr-code-generator": {
+    title: "QR Code Generator | UniConv",
+    description: "Create free, scannable QR codes instantly for any URL or text.",
+    keywords: ["qr code generator", "make qr code", "free qr code"]
+  },
+  "profile-picture-maker": {
+    title: "Profile Picture Maker | UniConv",
+    description: "Automatically remove image background and add a sleek colored circle behind it for the perfect profile picture.",
+    keywords: ["profile picture maker", "pfp maker", "remove bg for pfp"]
   }
 };
 
