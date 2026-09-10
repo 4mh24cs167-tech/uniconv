@@ -182,6 +182,9 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
       "compress-image": { view: "UNIVERSAL_CONVERTER", title: "Compress Image" },
       "compress-video": { view: "UNIVERSAL_CONVERTER", title: "Compress Video", targetFormat: "mp4" },
       "video-to-gif": { view: "UNIVERSAL_CONVERTER", title: "Video to GIF", targetFormat: "gif" },
+      "text-to-speech": { view: "UNIVERSAL_CONVERTER", title: "Text to Speech", targetFormat: "mp3" },
+      "qr-code-generator": { view: "UNIVERSAL_CONVERTER", title: "QR Code Generator", targetFormat: "png" },
+      "profile-picture-maker": { view: "UNIVERSAL_CONVERTER", title: "Profile Picture Maker", targetFormat: "png" },
       "remove-background": { view: "UNIVERSAL_CONVERTER", title: "Remove Background", targetFormat: "png" },
       "extract-text-ocr": { view: "UNIVERSAL_CONVERTER", title: "Extract Text (OCR)", targetFormat: "txt" },
       "watermark-remover": { view: "WATERMARK_REMOVER", title: "Watermark Remover" },
@@ -250,6 +253,9 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
   const [showPremiumGate, setShowPremiumGate] = useState(false);
   const [rejectedFileSize, setRejectedFileSize] = useState(0);
   const [htmlUrl, setHtmlUrl] = useState("");
+  const [ttsText, setTtsText] = useState("");
+  const [qrUrl, setQrUrl] = useState("");
+  const [profileColor, setProfileColor] = useState("#6366f1");
 
   const [availableFormats, setAvailableFormats] = useState<string[]>([]);
   const [detectedCategory, setDetectedCategory] = useState<string>("Unknown");
@@ -349,6 +355,12 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
         configuration = { position: watermarkPos };
       } else if (activeToolTitle === "HTML to PDF" && htmlUrl) {
         configuration = { url: htmlUrl };
+      } else if (activeToolTitle === "Text to Speech" && ttsText) {
+        configuration = { text: ttsText };
+      } else if (activeToolTitle === "QR Code Generator" && qrUrl) {
+        configuration = { url: qrUrl };
+      } else if (activeToolTitle === "Profile Picture Maker") {
+        configuration = { color: profileColor };
       } else if (activeToolTitle === "Compress Image" || activeToolTitle === "Compress Video") {
         let sizeMb = parseFloat(compressSize);
         if (!isNaN(sizeMb)) {
@@ -636,6 +648,27 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
                 />
                 <ToolCard 
                   isPremium={isPremium}
+                  title="Text to Speech" 
+                  description="Convert up to 40 seconds of text into a high-quality MP3 audio file instantly."
+                  icon={<FileArchive className="w-10 h-10" />}
+                  onClick={() => router.push("/text-to-speech")}
+                />
+                <ToolCard 
+                  isPremium={isPremium}
+                  title="QR Code Generator" 
+                  description="Paste a URL or text to generate a downloadable QR code image."
+                  icon={<FileImage className="w-10 h-10" />}
+                  onClick={() => router.push("/qr-code-generator")}
+                />
+                <ToolCard 
+                  isPremium={isPremium}
+                  title="Profile Picture Maker" 
+                  description="Automatically remove image background and add a sleek colored circle behind it."
+                  icon={<FileImage className="w-10 h-10" />}
+                  onClick={() => router.push("/profile-picture-maker")}
+                />
+                <ToolCard 
+                  isPremium={isPremium}
                   title="Remove Background" 
                   description="Use AI to automatically remove the background from any image."
                   icon={<FileImage className="w-10 h-10" />}
@@ -750,7 +783,44 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
 
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1">
                         <div>
-                          <UploadZone 
+                          
+                      {activeToolTitle === "Text to Speech" && (
+                         <div className="mb-6 p-6 rounded-2xl border bg-white shadow-sm dark:bg-slate-900 dark:border-slate-800">
+                            <label className="block text-sm font-bold mb-3">Enter Text to Convert to Audio (max ~40 seconds speech)</label>
+                            <div className="flex flex-col gap-3">
+                               <textarea placeholder="Hello, welcome to my video..." rows={4}
+                                  className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#e5322d] dark:bg-slate-800 dark:border-slate-700" 
+                                  value={ttsText} onChange={e => setTtsText(e.target.value)} />
+                               <button onClick={handleProcess} className="bg-[#e5322d] hover:bg-[#cc2b27] text-white px-6 py-3 rounded-xl font-bold transition-colors">
+                                 Generate MP3 Audio
+                               </button>
+                            </div>
+                         </div>
+                      )}
+                      
+                      {activeToolTitle === "QR Code Generator" && (
+                         <div className="mb-6 p-6 rounded-2xl border bg-white shadow-sm dark:bg-slate-900 dark:border-slate-800">
+                            <label className="block text-sm font-bold mb-3">Enter URL or Text for QR Code</label>
+                            <div className="flex flex-col sm:flex-row gap-3">
+                               <input type="text" placeholder="https://example.com" 
+                                  className="flex-1 rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#e5322d] dark:bg-slate-800 dark:border-slate-700" 
+                                  value={qrUrl} onChange={e => setQrUrl(e.target.value)} />
+                               <button onClick={handleProcess} className="bg-[#e5322d] hover:bg-[#cc2b27] text-white px-6 py-3 rounded-xl font-bold transition-colors whitespace-nowrap">
+                                 Generate QR Code
+                               </button>
+                            </div>
+                         </div>
+                      )}
+                      
+                      {activeToolTitle === "Profile Picture Maker" && (
+                         <div className="mb-6 p-6 rounded-2xl border bg-white shadow-sm dark:bg-slate-900 dark:border-slate-800 flex items-center justify-between">
+                            <label className="text-sm font-bold">Background Circle Color:</label>
+                            <input type="color" value={profileColor} onChange={e => setProfileColor(e.target.value)} className="w-12 h-12 rounded cursor-pointer border-0 p-0 m-0" />
+                         </div>
+                      )}
+                      
+                      {!(activeToolTitle === "Text to Speech" || activeToolTitle === "QR Code Generator") && (
+                        <UploadZone 
                             isPremium={isPremium}
                             multiple={false}
                             selectedFiles={files} 
@@ -973,7 +1043,44 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
                             <div className="text-center mt-6 mb-2 text-sm font-bold text-slate-400">OR UPLOAD HTML FILE BELOW</div>
                          </div>
                       )}
-                      <UploadZone 
+                      
+                      {activeToolTitle === "Text to Speech" && (
+                         <div className="mb-6 p-6 rounded-2xl border bg-white shadow-sm dark:bg-slate-900 dark:border-slate-800">
+                            <label className="block text-sm font-bold mb-3">Enter Text to Convert to Audio (max ~40 seconds speech)</label>
+                            <div className="flex flex-col gap-3">
+                               <textarea placeholder="Hello, welcome to my video..." rows={4}
+                                  className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#e5322d] dark:bg-slate-800 dark:border-slate-700" 
+                                  value={ttsText} onChange={e => setTtsText(e.target.value)} />
+                               <button onClick={handleProcess} className="bg-[#e5322d] hover:bg-[#cc2b27] text-white px-6 py-3 rounded-xl font-bold transition-colors">
+                                 Generate MP3 Audio
+                               </button>
+                            </div>
+                         </div>
+                      )}
+                      
+                      {activeToolTitle === "QR Code Generator" && (
+                         <div className="mb-6 p-6 rounded-2xl border bg-white shadow-sm dark:bg-slate-900 dark:border-slate-800">
+                            <label className="block text-sm font-bold mb-3">Enter URL or Text for QR Code</label>
+                            <div className="flex flex-col sm:flex-row gap-3">
+                               <input type="text" placeholder="https://example.com" 
+                                  className="flex-1 rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#e5322d] dark:bg-slate-800 dark:border-slate-700" 
+                                  value={qrUrl} onChange={e => setQrUrl(e.target.value)} />
+                               <button onClick={handleProcess} className="bg-[#e5322d] hover:bg-[#cc2b27] text-white px-6 py-3 rounded-xl font-bold transition-colors whitespace-nowrap">
+                                 Generate QR Code
+                               </button>
+                            </div>
+                         </div>
+                      )}
+                      
+                      {activeToolTitle === "Profile Picture Maker" && (
+                         <div className="mb-6 p-6 rounded-2xl border bg-white shadow-sm dark:bg-slate-900 dark:border-slate-800 flex items-center justify-between">
+                            <label className="text-sm font-bold">Background Circle Color:</label>
+                            <input type="color" value={profileColor} onChange={e => setProfileColor(e.target.value)} className="w-12 h-12 rounded cursor-pointer border-0 p-0 m-0" />
+                         </div>
+                      )}
+                      
+                      {!(activeToolTitle === "Text to Speech" || activeToolTitle === "QR Code Generator") && (
+                        <UploadZone 
                         isPremium={isPremium}
                         multiple={activeToolTitle === "Merge PDF"}
                         selectedFiles={files} 
