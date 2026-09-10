@@ -365,6 +365,27 @@ async def process_document_job(job_id: str):
                         for idx, file in enumerate(out_files):
                             zipf.write(file, f"part_{idx+1}.pdf")
                     success = True
+            elif tool == "Text to Speech":
+                output_filename = f"tts_{job['id']}.mp3"
+                output_path = os.path.join(temp_dir, output_filename)
+                text = job.get("configuration", {}).get("text", "")
+                if not text:
+                    raise Exception("No text provided for TTS")
+                text = " ".join(text.split()[:600])
+                from src.services.media_service import MediaService
+                success = MediaService.text_to_speech(text, output_path)
+            elif tool == "Profile Picture Maker":
+                output_filename = f"profile_{job['id']}.png"
+                output_path = os.path.join(temp_dir, output_filename)
+                color = job.get("configuration", {}).get("color", "#6366f1")
+                from src.services.image_service import ImageService
+                success = ImageService.create_profile_picture(input_paths[0], output_path, color)
+            elif tool == "QR Code Generator":
+                output_filename = f"qrcode_{job['id']}.png"
+                output_path = os.path.join(temp_dir, output_filename)
+                url = job.get("configuration", {}).get("url", "https://uniconv-psi.vercel.app")
+                from src.services.image_service import ImageService
+                success = ImageService.generate_qr_code(url, output_path)
             elif tool == "Remove Background":
                 output_filename = f"nobg_{job['id']}.png"
                 output_path = os.path.join(temp_dir, output_filename)

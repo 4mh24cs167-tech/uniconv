@@ -20,3 +20,7 @@ pytesseract==0.3.10
 pdfkit==1.0.0
 rembg==2.0.53
 
+
+qrcode==7.4.2
+gTTS==2.5.1
+Pillow==10.2.0

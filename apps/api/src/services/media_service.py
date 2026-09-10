@@ -283,3 +283,17 @@ class MediaService:
         except Exception as e:
             print(f"Error converting video to GIF: {e}")
             return False
+
+    @staticmethod
+    def text_to_speech(text: str, output_path: str, lang: str = "en") -> bool:
+        """
+        Converts text to an MP3 audio file using gTTS.
+        """
+        try:
+            from gtts import gTTS
+            tts = gTTS(text=text, lang=lang, slow=False)
+            tts.save(output_path)
+            return True
+        except Exception as e:
+            print(f"Error converting text to speech: {e}")
+            return False

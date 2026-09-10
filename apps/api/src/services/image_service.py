@@ -112,3 +112,59 @@ class ImageService:
         except Exception as e:
             print(f"Error removing background: {e}")
             return False
+
+    @staticmethod
+    def create_profile_picture(input_path: str, output_path: str, bg_color: str = "#FF5733") -> bool:
+        """
+        Removes background and adds a colored circular background.
+        """
+        try:
+            from rembg import remove
+            from PIL import Image, ImageDraw
+            import io
+            
+            with open(input_path, 'rb') as i:
+                subject_bytes = remove(i.read())
+                
+            subject = Image.open(io.BytesIO(subject_bytes)).convert("RGBA")
+            
+            size = max(subject.width, subject.height)
+            size = int(size * 1.2) # padding
+            
+            background = Image.new("RGBA", (size, size), (0,0,0,0))
+            draw = ImageDraw.Draw(background)
+            
+            color = bg_color if bg_color.startswith("#") else f"#{bg_color}"
+            draw.ellipse((0, 0, size, size), fill=color)
+            
+            offset_x = (size - subject.width) // 2
+            offset_y = (size - subject.height) // 2
+            
+            background.paste(subject, (offset_x, offset_y), subject)
+            background.save(output_path, "PNG")
+            return True
+        except Exception as e:
+            print(f"Error creating profile picture: {e}")
+            return False
+
+    @staticmethod
+    def generate_qr_code(url: str, output_path: str) -> bool:
+        """
+        Generates a QR code from a URL.
+        """
+        try:
+            import qrcode
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_H,
+                box_size=10,
+                border=4,
+            )
+            qr.add_data(url)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+            img.save(output_path)
+            return True
+        except Exception as e:
+            print(f"Error generating QR code: {e}")
+            return False
