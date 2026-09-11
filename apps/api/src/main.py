@@ -228,6 +228,7 @@ async def create_job(
     # 2. Determine limits based on User Plan
     max_file_size = 350 * 1024 * 1024 # 350MB default for Free/Guest
     
+    user_id = current_user.get("id") if current_user else None
     if user_id:
         user_res = supabase.table("users").select("plan_id").eq("id", user_id).execute()
         if user_res.data:
