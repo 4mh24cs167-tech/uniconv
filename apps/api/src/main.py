@@ -286,7 +286,7 @@ async def create_job(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-async def process_document_job(job_id: str):
+def process_document_job(job_id: str):
     """
     Background worker that:
     1. Downloads file from Supabase Storage
