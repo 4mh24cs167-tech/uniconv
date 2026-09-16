@@ -58,12 +58,14 @@ export default function PricingPage() {
         }
       };
       
-      const Razorpay = (window as Window & { Razorpay: new (options: Record<string, unknown>) => void }).Razorpay;
-      const rzp = new Razorpay(options);
-      rzp.open();
+      const Razorpay = (window as Window & { Razorpay?: new (options: Record<string, unknown>) => { open: () => void } }).Razorpay;
+      if (Razorpay) {
+        const rzp = new Razorpay(options);
+        rzp.open();
+      }
       
-    } catch (e: Error) {
-      alert(e.message);
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Payment failed");
     } finally {
       setLoading(false);
     }

@@ -54,9 +54,10 @@ export default function Dashboard() {
           .eq("id", session.user.id)
           .single();
           
-        const pData = userData?.plan as { name: string } | null;
-        if (pData?.name) {
-          setPlan(String(pData.name).toLowerCase());
+        const pData = userData?.plan as { name: string } | { name: string }[] | null;
+        if (pData) {
+          const planName = Array.isArray(pData) ? pData[0]?.name : pData.name;
+          if (planName) setPlan(String(planName).toLowerCase());
         }
       }
 

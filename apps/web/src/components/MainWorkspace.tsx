@@ -109,13 +109,16 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
           setUserPlan("premium");
         } else {
           const { data } = await supabase.from("users").select("plan:plans(name)").eq("id", session.user.id).single();
-          const planData = data?.plan as { name: string } | null;
-          if (planData?.name) {
-            const pName = String(planData.name).toLowerCase();
-            if (pName === "pro" || pName === "premium") {
-              setIsPremium(true);
+          const planData = data?.plan as { name: string } | { name: string }[] | null;
+          if (planData) {
+            const planName = Array.isArray(planData) ? planData[0]?.name : planData.name;
+            if (planName) {
+              const pName = String(planName).toLowerCase();
+              if (pName === "pro" || pName === "premium") {
+                setIsPremium(true);
+              }
+              setUserPlan(pName);
             }
-            setUserPlan(pName);
           }
         }
       }
@@ -315,8 +318,8 @@ if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
          }
        }, 2000);
 
-    } catch (e: Error) {
-      setError(e.message || "An unexpected error occurred.");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "An unexpected error occurred.");
       setIsProcessing(false);
     }
   };

@@ -110,9 +110,9 @@ export default function AdminPanel() {
         }
         return u;
       }));
-    } catch (e: Error) {
+    } catch (e: unknown) {
       console.error(e);
-      alert(e.message || "An error occurred");
+      alert(e instanceof Error ? e.message : "An error occurred");
     }
   };
 
