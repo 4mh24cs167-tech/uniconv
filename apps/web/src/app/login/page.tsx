@@ -6,7 +6,6 @@ import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { ArrowLeft, FileText } from 'lucide-react';
-import { clsx } from 'clsx';
 import { Button } from "@/components/ui/button";
 
 export default function LoginPage() {
@@ -26,7 +25,7 @@ export default function LoginPage() {
     checkUser();
     
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (event) => {
         if (event === 'SIGNED_IN') {
           router.push('/dashboard');
         }

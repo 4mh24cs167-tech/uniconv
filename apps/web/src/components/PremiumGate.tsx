@@ -3,15 +3,16 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 interface PremiumGateProps {
   isOpen: boolean;
   onClose: () => void;
   fileSizeMB: number;
-  limitMB: number;
 }
 
-export function PremiumGate({ isOpen, onClose, fileSizeMB, limitMB }: PremiumGateProps) {
+export function PremiumGate({ isOpen, onClose, fileSizeMB }: PremiumGateProps) {
+  const router = useRouter();
   return (
     <AnimatePresence>
       {isOpen && (
@@ -69,7 +70,7 @@ export function PremiumGate({ isOpen, onClose, fileSizeMB, limitMB }: PremiumGat
                   <Button className="w-full py-6 text-lg font-bold bg-gradient-to-r from-purple-600 to-blue-600 hover:opacity-90 shadow-xl shadow-purple-500/25 border-0">
                     Upgrade to Pro
                   </Button>
-                  <Button variant="ghost" onClick={() => window.location.href = "/pricing"} className="text-slate-500 hover:text-slate-800 font-semibold">
+                  <Button variant="ghost" onClick={() => router.push("/pricing")} className="text-slate-500 hover:text-slate-800 font-semibold">
                     View Plans
                   </Button>
                 </div>

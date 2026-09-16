@@ -303,8 +303,11 @@ def process_document_job(job_id: str):
         
         print(f"Starting processing for job {job_id}")
         
-        # Update status to PROCESSING
-        supabase.table("processing_jobs").update({"status": "PROCESSING"}).eq("id", job_id).execute()
+        # Update status to PROCESSING with initial progress
+        try:
+            supabase.table("processing_jobs").update({"status": "PROCESSING", "progress": 10}).eq("id", job_id).execute()
+        except Exception:
+            supabase.table("processing_jobs").update({"status": "PROCESSING"}).eq("id", job_id).execute()
         
         # 1. Fetch Job and Input Files Metadata
         job_res = supabase.table("processing_jobs").select("*").eq("id", job_id).single().execute()
@@ -331,7 +334,13 @@ def process_document_job(job_id: str):
                 with open(in_path, "wb") as f:
                     f.write(storage_res)
                 input_paths.append(in_path)
-                
+            
+            # Update progress after download
+            try:
+                supabase.table("processing_jobs").update({"progress": 30}).eq("id", job_id).execute()
+            except Exception:
+                pass
+            
             # 3. Process based on tool
             tool = job["tool"]
             success = False
@@ -515,6 +524,12 @@ def process_document_job(job_id: str):
                 
             if not success:
                 raise Exception(f"Processing failed for tool: {tool}")
+            
+            # Update progress after processing
+            try:
+                supabase.table("processing_jobs").update({"progress": 70}).eq("id", job_id).execute()
+            except Exception:
+                pass
                 
             # 4. Upload Result to Supabase Storage
             import mimetypes
@@ -528,6 +543,12 @@ def process_document_job(job_id: str):
                     file=f,
                     file_options={"content-type": content_type} 
                 )
+            
+            # Update progress after upload
+            try:
+                supabase.table("processing_jobs").update({"progress": 90}).eq("id", job_id).execute()
+            except Exception:
+                pass
                 
             # 5. Create Result File Record in DB
             result_file_res = supabase.table("files").insert({
@@ -541,20 +562,33 @@ def process_document_job(job_id: str):
             result_file_id = result_file_res.data[0]["id"]
             
             # 5. Update job status to COMPLETED
-            supabase.table("processing_jobs").update({
-                "status": "COMPLETED", 
-                "progress": 100,
-                "result_file_id": result_file_id
-            }).eq("id", job_id).execute()
+            try:
+                supabase.table("processing_jobs").update({
+                    "status": "COMPLETED", 
+                    "progress": 100,
+                    "result_file_id": result_file_id
+                }).eq("id", job_id).execute()
+            except Exception:
+                supabase.table("processing_jobs").update({
+                    "status": "COMPLETED", 
+                    "result_file_id": result_file_id
+                }).eq("id", job_id).execute()
             
             print(f"Completed processing for job {job_id}")
             
     except Exception as e:
         print(f"Job {job_id} failed: {e}")
-        supabase.table("processing_jobs").update({
-            "status": "FAILED",
-            "error_message": str(e)
-        }).eq("id", job_id).execute()
+        try:
+            supabase.table("processing_jobs").update({
+                "status": "FAILED",
+                "error_message": str(e),
+                "progress": 0
+            }).eq("id", job_id).execute()
+        except Exception:
+            supabase.table("processing_jobs").update({
+                "status": "FAILED",
+                "error_message": str(e)
+            }).eq("id", job_id).execute()
 
 class NotifyRequest(BaseModel):
     user_email: str

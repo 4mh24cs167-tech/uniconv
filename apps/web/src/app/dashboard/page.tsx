@@ -8,9 +8,21 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { clsx } from "clsx";
 
+interface Job {
+  id: string;
+  tool: string;
+  status: string;
+  created_at: string;
+  error_message?: string;
+  result_file: {
+    id: string;
+    storage_key: string;
+  } | null;
+}
+
 export default function Dashboard() {
   const router = useRouter();
-  const [jobs, setJobs] = useState<any[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const supabase = createBrowserClient(
@@ -42,14 +54,14 @@ export default function Dashboard() {
           .eq("id", session.user.id)
           .single();
           
-        const pData = userData?.plan as any;
+        const pData = userData?.plan as { name: string } | null;
         if (pData?.name) {
           setPlan(String(pData.name).toLowerCase());
         }
       }
 
       // Fetch jobs with their result file data
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("processing_jobs")
         .select(`
           *,
@@ -68,7 +80,7 @@ export default function Dashboard() {
     fetchJobsAndPlan();
   }, [router, supabase]);
 
-  const handleDownload = async (file: any) => {
+  const handleDownload = async (file: { storage_key: string } | null) => {
     if (!file?.storage_key) return;
     const { data } = supabase.storage.from("results").getPublicUrl(file.storage_key);
     if (data?.publicUrl) {
@@ -228,7 +240,7 @@ export default function Dashboard() {
           </div>
           <div className="p-6 md:p-8 space-y-6">
             <p className="text-slate-400">
-              Integrate UniConv's powerful document processing engine directly into your own applications using our REST API. 
+              Integrate UniConv&apos;s powerful document processing engine directly into your own applications using our REST API. 
               Authenticating is easy—just pass your Bearer token.
             </p>
             

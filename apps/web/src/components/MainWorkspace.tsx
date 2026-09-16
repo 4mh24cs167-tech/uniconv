@@ -2,136 +2,26 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
 import { UploadZone } from "@/components/UploadZone";
 import { FormatPicker } from "@/components/FormatPicker";
 import { ToolCard } from "@/components/ToolCard";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, CheckCircle2, Download, Eraser, ArrowLeft, FileText, FileImage, FileSpreadsheet, FileArchive, Zap, Settings, Lock, Menu, X, UploadCloud, Music, Shield } from "lucide-react";
+import { AlertCircle, CheckCircle2, Download, Eraser, ArrowLeft, FileText, FileImage, FileSpreadsheet, FileArchive, Settings, Music, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import { PremiumGate } from "@/components/PremiumGate";
 
 type ViewState = "HUB" | "UNIVERSAL_CONVERTER" | "WATERMARK_REMOVER" | "PDF_TO_EXCEL" | "AUDIO_CONVERTER" | "SECURE_PDF";
 
-const AdsterraBanner = () => {
-  const [isVisible, setIsVisible] = useState(true);
-  const banner = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!banner.current || !isVisible) return;
-    
-    // Clear any existing ad to prevent duplicates on re-renders
-    banner.current.innerHTML = '';
-
-    const html = `
-      <html>
-        <body style="margin:0;padding:0;background:transparent;">
-          <script type="text/javascript">
-            atOptions = {
-              'key' : 'ac26a747103aa507dba80d5383d1b753',
-              'format' : 'iframe',
-              'height' : 600,
-              'width' : 160,
-              'params' : {}
-            };
-          </script>
-          <script type="text/javascript" src="https://www.highrevenueformat.com/ac26a747103aa507dba80d5383d1b753/invoke.js"></script>
-        </body>
-      </html>
-    `;
-    const iframe = document.createElement('iframe');
-    iframe.srcdoc = html;
-    iframe.sandbox.add('allow-scripts', 'allow-same-origin');
-    iframe.width = "160";
-    iframe.height = "600";
-    iframe.style.border = "none";
-    banner.current.append(iframe);
-  }, [isVisible]);
-
-  if (!isVisible) return null;
-
-  return (
-    <div className="relative">
-      <button 
-        onClick={() => setIsVisible(false)}
-        className="absolute -top-3 -right-3 z-50 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 rounded-full p-1 shadow-md border border-slate-300 dark:border-slate-600"
-      >
-        <X className="w-3 h-3" />
-      </button>
-      <div ref={banner} className="w-[160px] h-[600px] flex items-center justify-center text-xs text-slate-400 bg-transparent" />
-    </div>
-  );
-};
-
-const BottomStickyAd = () => {
-  const [isVisible, setIsVisible] = useState(true);
-  const banner = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!banner.current || !isVisible) return;
-    banner.current.innerHTML = '';
-    
-    const html = `
-      <html>
-        <body style="margin:0;padding:0;background:transparent;">
-          <script type="text/javascript">
-            atOptions = {
-              'key' : 'cae542104f9271b9d12d8da545808b93',
-              'format' : 'iframe',
-              'height' : 50,
-              'width' : 320,
-              'params' : {}
-            };
-          </script>
-          <script type="text/javascript" src="https://www.highrevenueformat.com/cae542104f9271b9d12d8da545808b93/invoke.js"></script>
-        </body>
-      </html>
-    `;
-    const iframe = document.createElement('iframe');
-    iframe.srcdoc = html;
-    iframe.sandbox.add('allow-scripts', 'allow-same-origin');
-    iframe.width = "320";
-    iframe.height = "50";
-    iframe.style.border = "none";
-    banner.current.append(iframe);
-  }, [isVisible]);
-
-  if (!isVisible) return null;
-
-  return (
-    <div className="fixed bottom-0 left-0 right-0 z-[100] bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1)] p-2 flex justify-center items-center min-h-[70px]">
-      <button 
-        onClick={() => setIsVisible(false)}
-        className="absolute top-1 right-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-full p-1 transition-colors z-10"
-        aria-label="Close Ad"
-      >
-        <X className="w-4 h-4" />
-      </button>
-      <div className="absolute top-1 left-2 text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">Advertisement</div>
-      <div ref={banner} className="w-[320px] h-[50px] flex justify-center items-center overflow-hidden pt-4 sm:pt-0" />
-    </div>
-  );
-};
-
-const AdsterraNativeBanner = () => {
-  const containerId = "container-b2b0924fd99dc0e7e51209eb0175db9b";
-  
-  useEffect(() => {
-    if (document.getElementById(`script-${containerId}`)) return;
-
-    const script = document.createElement("script");
-    script.id = `script-${containerId}`;
-    script.src = "https://pl31158859.profitableratecpmnetwork.com/b2b0924fd99dc0e7e51209eb0175db9b/invoke.js";
-    script.async = true;
-    script.setAttribute("data-cfasync", "false");
-    
-    document.body.appendChild(script);
-  }, []);
-
-  return <div id={containerId} className="w-full flex justify-center my-6" />;
+type SecureConfig = {
+  password?: string;
+  permissions?: Record<string, boolean>;
+  text?: string;
+  color?: string;
 };
 
 export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
@@ -151,7 +41,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
 
   // Secure PDF state
   const [secureTool, setSecureTool] = useState<string>("password");
-  const [secureConfig, setSecureConfig] = useState<any>({});
+  const [secureConfig, setSecureConfig] = useState<SecureConfig>({});
 
   // Watermark Remover state
   const [watermarkPos, setWatermarkPos] = useState<string>("bottom_right");
@@ -159,9 +49,6 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
   // Compressor state
   const [compressSize, setCompressSize] = useState<string>("");
   const [compressUnit, setCompressUnit] = useState<string>("KB");
-
-  // Ad state
-  const [ad, setAd] = useState<{image_url: string, target_url: string} | null>(null);
 
   useEffect(() => {
     if (!initialSlug) return;
@@ -195,31 +82,23 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
 
     const mapping = toolMappings[initialSlug];
     if (mapping) {
-      setView(mapping.view);
-      setActiveToolTitle(mapping.title);
-      if (mapping.targetFormat) setTargetFormat(mapping.targetFormat);
+      setTimeout(() => {
+        setView(mapping.view);
+        setActiveToolTitle(mapping.title);
+        if (mapping.targetFormat) setTargetFormat(mapping.targetFormat);
+      }, 0);
     }
   }, [initialSlug]);
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const fetchPlanAndAd = async () => {
+    const fetchPlan = async () => {
       const { createBrowserClient } = await import('@supabase/ssr');
       const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
       );
-      
-      // Fetch Ad
-      try {
-        const { data } = await supabase.from('ads').select('*').eq('is_active', true).limit(1).single();
-        if (data) {
-          setAd(data);
-        }
-      } catch (e) {
-        // Fallback or ignore if table doesn't exist yet
-      }
 
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -230,7 +109,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
           setUserPlan("premium");
         } else {
           const { data } = await supabase.from("users").select("plan:plans(name)").eq("id", session.user.id).single();
-          const planData = data?.plan as any;
+          const planData = data?.plan as { name: string } | null;
           if (planData?.name) {
             const pName = String(planData.name).toLowerCase();
             if (pName === "pro" || pName === "premium") {
@@ -241,7 +120,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
         }
       }
     };
-    fetchPlanAndAd();
+    fetchPlan();
   }, []);
 
   // Shared state for the active tool
@@ -272,12 +151,6 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
     setDetectedCategory("Unknown");
   };
 
-  const navigateTo = (v: ViewState, title: string = "") => {
-    resetState();
-    setActiveToolTitle(title);
-    setView(v);
-  };
-
   const handleProcess = async () => {
     const isTextBasedTool = (activeToolTitle === 'HTML to PDF' && htmlUrl) || (activeToolTitle === 'Text to Speech' && ttsText) || (activeToolTitle === 'QR Code Generator' && qrUrl);
     if (files.length === 0 && !isTextBasedTool) {
@@ -289,8 +162,6 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
     setError(null);
     setResultUrl(null);
 
-    const isWatermark = activeToolTitle === "Watermark Remover";
-    const isExcelTemplate = view === "PDF_TO_EXCEL";
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://uniconv.onrender.com";
 
     try {
@@ -322,7 +193,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
         );
         
-        const fileName = typeof fileRecordOrString === 'string' ? fileRecordOrString : (fileRecordOrString as any).id;
+        const fileName = typeof fileRecordOrString === 'string' ? fileRecordOrString : (fileRecordOrString as { id: string }).id;
         
         // Get user if any
         const { data: { session } } = await supabase.auth.getSession();
@@ -344,7 +215,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
 
       let toolName = activeToolTitle;
       let finalTargetFormat = targetFormat;
-      let configuration: any = undefined;
+      let configuration: Record<string, unknown> | undefined = undefined;
 
       if (view === "AUDIO_CONVERTER") {
         toolName = "Audio Conversions";
@@ -394,59 +265,57 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
       const jobId = jobData.job_id;
 
       // 3. Poll for Job Status
-      let simProgress = 50;
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-      
-      pollIntervalRef.current = setInterval(async () => {
-        // Increase progress bar smoothly up to 90%
-        if (simProgress < 90) {
-          simProgress += 10;
-          setProgress(simProgress);
-        }
+if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+       
+       pollIntervalRef.current = setInterval(async () => {
+         try {
+           // Fetch job status from Supabase
+           const { createBrowserClient } = await import('@supabase/ssr');
+           const supabase = createBrowserClient(
+             process.env.NEXT_PUBLIC_SUPABASE_URL!,
+             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+           );
+           
+           const { data, error } = await supabase.from("processing_jobs").select("*, result_file:files(*)").eq("id", jobId).single();
+           
+           if (error) {
+             console.error("Supabase polling error:", error);
+           }
 
-        try {
-          // Fetch job status from Supabase
-          const { createBrowserClient } = await import('@supabase/ssr');
-          const supabase = createBrowserClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-          );
-          
-          const { data, error } = await supabase.from("processing_jobs").select("*, result_file:files(*)").eq("id", jobId).single();
-          
-          if (error) {
-            console.error("Supabase polling error:", error);
-            // Don't kill polling immediately on transient errors, just log it.
-          }
+           if (data) {
+             // Use real progress from backend if available
+             if (data.progress !== null && data.progress !== undefined) {
+               setProgress(data.progress);
+             } else if (data.status === "PROCESSING") {
+               setProgress(prev => Math.min(prev + 5, 95));
+             }
 
-          if (data) {
-            if (data.status === "COMPLETED") {
-              if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-              setProgress(100);
-              
-              if (data.result_file && data.result_file.storage_key) {
-                const { data: urlData } = supabase.storage.from("results").getPublicUrl(data.result_file.storage_key, { download: true });
-                setResultUrl(urlData.publicUrl);
-                setResultFilename(data.result_file.storage_key);
-              } else if (data.result_file && Array.isArray(data.result_file) && data.result_file[0]?.storage_key) {
-                // In case it returns an array
-                const { data: urlData } = supabase.storage.from("results").getPublicUrl(data.result_file[0].storage_key, { download: true });
-                setResultUrl(urlData.publicUrl);
-                setResultFilename(data.result_file[0].storage_key);
-              }
-              setIsProcessing(false);
-            } else if (data.status === "FAILED") {
-              if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-              setError(data.error_message || "Processing failed");
-              setIsProcessing(false);
-            }
-          }
-        } catch (e) {
-          console.error("Polling error", e);
-        }
-      }, 3000);
+             if (data.status === "COMPLETED") {
+               if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+               setProgress(100);
+               
+               if (data.result_file && data.result_file.storage_key) {
+                 const { data: urlData } = supabase.storage.from("results").getPublicUrl(data.result_file.storage_key, { download: true });
+                 setResultUrl(urlData.publicUrl);
+                 setResultFilename(data.result_file.storage_key);
+               } else if (data.result_file && Array.isArray(data.result_file) && data.result_file[0]?.storage_key) {
+                 const { data: urlData } = supabase.storage.from("results").getPublicUrl(data.result_file[0].storage_key, { download: true });
+                 setResultUrl(urlData.publicUrl);
+                 setResultFilename(data.result_file[0].storage_key);
+               }
+               setIsProcessing(false);
+             } else if (data.status === "FAILED") {
+               if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+               setError(data.error_message || "Processing failed");
+               setIsProcessing(false);
+             }
+           }
+         } catch (e) {
+           console.error("Polling error", e);
+         }
+       }, 2000);
 
-    } catch (e: any) {
+    } catch (e: Error) {
       setError(e.message || "An unexpected error occurred.");
       setIsProcessing(false);
     }
@@ -457,14 +326,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
       "min-h-screen transition-colors duration-500 font-sans",
       isPremium ? "dark bg-slate-950 text-slate-50" : "bg-slate-50 text-slate-900"
     )}>
-      {/* Ad Banners */}
-      <div className="hidden 2xl:block fixed left-4 top-1/2 -translate-y-1/2 w-[160px] h-[600px] z-50">
-        <AdsterraBanner />
-      </div>
-      <div className="hidden 2xl:block fixed right-4 top-1/2 -translate-y-1/2 w-[160px] h-[600px] z-50">
-        <AdsterraBanner />
-      </div>
-      <BottomStickyAd />
+      
 
       {/* Header */}
       <header className={clsx(
@@ -473,7 +335,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
       )}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push("/")}>
-            <img src="/logo.png" alt="UniConv Logo" className="w-10 h-10 object-contain" />
+            <Image src="/logo.png" alt="UniConv Logo" width={40} height={40} className="object-contain" />
             <span className="text-2xl font-extrabold tracking-tight">
               <span className="text-blue-600">Uni</span>
               <span className="text-teal-500">Conv</span>
@@ -485,18 +347,18 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
             )}
           </div>
           <div className="flex items-center gap-4">
-            <a href="/pricing" className={clsx(
+            <Link href="/pricing" className={clsx(
               "text-sm font-semibold transition-colors mr-2",
               isPremium ? "text-purple-300 hover:text-white" : "text-purple-600 hover:text-purple-900"
             )}>
               Pricing
-            </a>
-            <a href={isLoggedIn ? "/dashboard" : "/login"} className={clsx(
+            </Link>
+            <Link href={isLoggedIn ? "/dashboard" : "/login"} className={clsx(
               "text-sm font-semibold transition-colors",
               isPremium ? "text-slate-300 hover:text-white" : "text-slate-600 hover:text-slate-900"
             )}>
               {isLoggedIn ? "Dashboard" : "Log in"}
-            </a>
+            </Link>
           </div>
         </div>
       </header>
@@ -639,7 +501,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
                       router.push("/extract-text-ocr"); 
                     } else {
                       alert("Extract Text (OCR) is a Pro/Premium feature. Please upgrade your plan.");
-                      window.location.href = "/pricing";
+                      router.push("/pricing");
                     }
                   }}
                 />
@@ -714,8 +576,6 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
                   onClick={() => router.push("/unlock-pdf")}
                 />
               </div>
-              
-              <AdsterraNativeBanner />
             </motion.div>
           )}
 
@@ -915,7 +775,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
                             {secureTool === "metadata" && (
                               <div>
                                 <p className={clsx("text-sm", isPremium ? "text-slate-400" : "text-slate-600")}>
-                                  Clicking 'Apply Security' will completely wipe all metadata (Author, Title, Creator, Producer) from the uploaded PDF.
+                                  Clicking &apos;Apply Security&apos; will completely wipe all metadata (Author, Title, Creator, Producer) from the uploaded PDF.
                                 </p>
                               </div>
                             )}
@@ -1367,7 +1227,6 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
         isOpen={showPremiumGate} 
         onClose={() => setShowPremiumGate(false)} 
         fileSizeMB={rejectedFileSize} 
-        limitMB={10} 
       />
     </div>
   );

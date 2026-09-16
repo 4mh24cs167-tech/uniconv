@@ -2,7 +2,6 @@
 
 import { ArrowLeft, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { clsx } from "clsx";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Script from "next/script";
@@ -50,7 +49,7 @@ export default function PricingPage() {
         name: "UniConv",
         description: `${planId.toUpperCase()} Plan Subscription`,
         order_id: data.order_id,
-        handler: function (response: any) {
+        handler: function () {
           alert(`Payment successful! Welcome to the ${planId} tier! Refreshing...`);
           router.push("/dashboard");
         },
@@ -59,10 +58,11 @@ export default function PricingPage() {
         }
       };
       
-      const rzp = new (window as any).Razorpay(options);
+      const Razorpay = (window as Window & { Razorpay: new (options: Record<string, unknown>) => void }).Razorpay;
+      const rzp = new Razorpay(options);
       rzp.open();
       
-    } catch (e: any) {
+    } catch (e: Error) {
       alert(e.message);
     } finally {
       setLoading(false);

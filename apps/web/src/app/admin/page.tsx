@@ -7,9 +7,18 @@ import { Shield, Users, Database, ArrowLeft, Loader2, Search, Edit2 } from "luci
 import { Button } from "@/components/ui/button";
 import { clsx } from "clsx";
 
+interface User {
+  id: string;
+  email: string;
+  name: string | null;
+  plan: { name: string } | null;
+  storage_used_bytes?: number;
+  created_at: string;
+}
+
 export default function AdminPanel() {
   const router = useRouter();
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [adminEmail, setAdminEmail] = useState("");
   const [search, setSearch] = useState("");
@@ -36,7 +45,7 @@ export default function AdminPanel() {
       setAdminEmail(session.user.email || "");
 
       // Fetch users and their plans
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("users")
         .select(`
           *,
@@ -101,7 +110,7 @@ export default function AdminPanel() {
         }
         return u;
       }));
-    } catch (e: any) {
+    } catch (e: Error) {
       console.error(e);
       alert(e.message || "An error occurred");
     }
