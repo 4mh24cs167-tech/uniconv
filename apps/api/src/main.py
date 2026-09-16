@@ -10,18 +10,26 @@ load_dotenv()
 
 app = FastAPI(title="Document Productivity API")
 
+# Parse allowed origins from environment variable (comma-separated)
+frontend_urls = os.getenv("FRONTEND_URL", "https://uniconv.vercel.app,https://uniconv-psi.vercel.app,http://localhost:3000")
+allowed_origins = [u.strip().rstrip("/") for u in frontend_urls.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_URL", "https://uniconv.vercel.app").rstrip("/"), "https://uniconv-psi.vercel.app", "http://localhost:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
 
 url: str = os.getenv("SUPABASE_URL", "")
-key: str = os.getenv("SUPABASE_KEY", "")
+# Use service role key for backend operations to bypass RLS
+service_key: str = os.getenv("SUPABASE_SERVICE_KEY", "")
+# Fallback to anon key for backwards compatibility
+anon_key: str = os.getenv("SUPABASE_KEY", "")
+key: str = service_key or anon_key
 
-# We initialize a global Supabase client (using anon key or service role).
+# We initialize a global Supabase client with service role key for backend operations.
 # For secure routes, we will verify the user's JWT from the request header.
 supabase: Client = create_client(url, key) if url and key else None
 

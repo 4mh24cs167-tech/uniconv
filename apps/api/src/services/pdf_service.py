@@ -110,34 +110,40 @@ class PDFService:
             import pdfplumber
             import pandas as pd
             import gc
+            import re
             
             table_count = 0
-            with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
-                with pdfplumber.open(input_path) as pdf:
-                    for page in pdf.pages:
-                        tables = page.extract_tables()
-                        for table in tables:
-                            if not table or not table[0]: continue
-                            df = pd.DataFrame(table[1:], columns=table[0])
-                            # Openpyxl limits sheet names to 31 chars and invalidates certain characters
-                            import re
-                            sheet_name = re.sub(r'[\\/*?:\[\]]', '', f"Table_{table_count+1}")[:31]
-                            df.to_excel(writer, sheet_name=sheet_name, index=False)
-                            table_count += 1
-                            del df
-                            del table
-                        
-                        # CRITICAL: Clear pdfplumber page cache to prevent OOM on Render
-                        page.flush_cache()
-                        del tables
-                        gc.collect()
+            sheets_data = []
+            
+            with pdfplumber.open(input_path) as pdf:
+                for page in pdf.pages:
+                    tables = page.extract_tables()
+                    for table in tables:
+                        if not table or not table[0]: continue
+                        df = pd.DataFrame(table[1:], columns=table[0])
+                        sheet_name = re.sub(r'[\\/*?:\[\]]', '', f"Table_{table_count+1}")[:31]
+                        sheets_data.append((sheet_name, df))
+                        table_count += 1
+                        del df
+                        del table
+                    
+                    page.flush_cache()
+                    del tables
+                    gc.collect()
             
             if table_count == 0:
-                pd.DataFrame([["No tables detected in PDF"]]).to_excel(output_path, index=False)
-                    
+                # Create a default sheet with message
+                df = pd.DataFrame([["No tables detected in PDF"]])
+                sheets_data.append(("No Tables", df))
+            
+            # Write all sheets at once
+            with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
+                for sheet_name, df in sheets_data:
+                    df.to_excel(writer, sheet_name=sheet_name, index=False)
+            
             return True
         except ImportError:
-            print("pdfplumber/pandas not installed.")
+            print("pdfplumber/pandas/openpyxl not installed.")
             return False
         except Exception as e:
             print(f"Error converting PDF to Excel: {e}")
@@ -326,7 +332,7 @@ class PDFService:
             
             # Requires encryption to set permissions
             import secrets
-            owner_pw = secrets.token_urlsafe(32)
+            owner_pw = secrets.token_urlsafe(30)  # 30 bytes = 40 chars max for PyMuPDF
             doc.save(output_path, encryption=fitz.PDF_ENCRYPT_AES_256, permissions=perms, owner_pw=owner_pw)
             doc.close()
             return True
