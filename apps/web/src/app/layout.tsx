@@ -46,7 +46,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9886149871233121"
-          crossOrigin="anonymous"
           strategy="afterInteractive"
         />
       </head>

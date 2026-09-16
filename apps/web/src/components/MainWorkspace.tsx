@@ -14,6 +14,7 @@ import { AlertCircle, CheckCircle2, Download, Eraser, ArrowLeft, FileText, FileI
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import { PremiumGate } from "@/components/PremiumGate";
+import { getBrowserSupabaseClient } from "@/lib/supabase-browser";
 
 type ViewState = "HUB" | "UNIVERSAL_CONVERTER" | "WATERMARK_REMOVER" | "PDF_TO_EXCEL" | "AUDIO_CONVERTER" | "SECURE_PDF";
 
@@ -92,14 +93,12 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Use singleton Supabase client to avoid multiple GoTrueClient instances
+  const supabase = getBrowserSupabaseClient();
+  const getSupabase = () => supabase;
+
   useEffect(() => {
     const fetchPlan = async () => {
-      const { createBrowserClient } = await import('@supabase/ssr');
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
-
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setIsLoggedIn(true);
@@ -186,15 +185,8 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
           throw new Error(`Failed to upload ${f.name}`);
         }
         
-        // uploadFileToSupabaseResumable returns string (the filename/path)
-        // Wait, we need to create the file in DB to get an ID.
-        // The mock uploadFileToSupabaseResumable returns a string filename.
-        // So we need to insert it into DB if it doesn't return an object.
-        const { createBrowserClient } = await import('@supabase/ssr');
-        const supabase = createBrowserClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        );
+        // Use singleton client
+        const supabase = getBrowserSupabaseClient();
         
         const fileName = typeof fileRecordOrString === 'string' ? fileRecordOrString : (fileRecordOrString as { id: string }).id;
         
@@ -270,16 +262,12 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
       // 3. Poll for Job Status
 if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
        
-       pollIntervalRef.current = setInterval(async () => {
-         try {
-           // Fetch job status from Supabase
-           const { createBrowserClient } = await import('@supabase/ssr');
-           const supabase = createBrowserClient(
-             process.env.NEXT_PUBLIC_SUPABASE_URL!,
-             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-           );
-           
-           const { data, error } = await supabase.from("processing_jobs").select("*, result_file:files(*)").eq("id", jobId).single();
+pollIntervalRef.current = setInterval(async () => {
+          try {
+            // Use singleton client
+            const supabase = getBrowserSupabaseClient();
+            
+            const { data, error } = await supabase.from("processing_jobs").select("*, result_file:files(*)").eq("id", jobId).single();
            
            if (error) {
              console.error("Supabase polling error:", error);
