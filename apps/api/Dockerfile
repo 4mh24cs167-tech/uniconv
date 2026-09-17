@@ -1,6 +1,9 @@
 # Use the stable Debian bookworm Python image
 FROM python:3.11-slim-bookworm
 
+# Disable numba caching (needed for rembg to import correctly during Docker build)
+ENV NUMBA_DISABLE_CACHING=1
+
 # Set the working directory inside the container
 WORKDIR /app
 
