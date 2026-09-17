@@ -263,7 +263,9 @@ def process_document_job(job_id: str):
         job = job_res.data
         input_ids = job.get("input_file_ids") or []
 
-        if not input_ids:
+        # Text-based tools (TTS, QR Code) don't require file uploads
+        text_based_tools = {"Text to Speech", "QR Code Generator"}
+        if not input_ids and tool not in text_based_tools:
             raise Exception("No input files provided for processing")
 
         with tempfile.TemporaryDirectory() as temp_dir:
