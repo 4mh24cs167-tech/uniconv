@@ -33,5 +33,8 @@ USER appuser
 # Expose the port FastAPI runs on
 EXPOSE 8000
 
+# Ensure sitecustomize.py is found by Python at startup
+ENV PYTHONPATH=/app
+
 # Command to run the FastAPI application using Uvicorn
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
