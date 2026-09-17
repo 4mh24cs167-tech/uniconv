@@ -1,7 +1,7 @@
 # Use the stable Debian bookworm Python image
 FROM python:3.11-slim-bookworm
 
-# Disable numba caching (needed for rembg to import correctly during Docker build)
+# Disable numba caching — fixes rembg/pymatting import in Docker containers
 ENV NUMBA_DISABLE_CACHING=1
 
 # Set the working directory inside the container
@@ -29,9 +29,6 @@ COPY . .
 # Create a non-root user and switch to it
 RUN useradd -r appuser && chown -R appuser /app
 USER appuser
-
-# Pre-download the rembg U2Net ONNX model as appuser so it's cached at runtime
-RUN python -c "from rembg.session_factory import new_session; new_session('u2net')"
 
 # Expose the port FastAPI runs on
 EXPOSE 8000
