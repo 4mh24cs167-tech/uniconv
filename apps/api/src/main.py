@@ -405,6 +405,50 @@ def process_document_job(job_id: str):
                 output_path = os.path.join(temp_dir, output_filename)
                 password = job.get("configuration", {}).get("password", "")
                 success = PDFService.unlock_pdf(input_paths[0], output_path, password)
+            elif tool == "Image Resizer":
+                output_filename = f"resized_{job['id']}.png"
+                output_path = os.path.join(temp_dir, output_filename)
+                cfg = job.get("configuration", {}) or {}
+                from src.services.image_service import ImageService
+                success = ImageService.resize_image(
+                    input_paths[0], output_path,
+                    width=cfg.get("width"), height=cfg.get("height"),
+                    maintain_aspect=cfg.get("maintain_aspect", True)
+                )
+            elif tool == "Crop Image":
+                output_filename = f"cropped_{job['id']}.png"
+                output_path = os.path.join(temp_dir, output_filename)
+                cfg = job.get("configuration", {}) or {}
+                from src.services.image_service import ImageService
+                success = ImageService.crop_image(
+                    input_paths[0], output_path,
+                    x=cfg.get("x", 0), y=cfg.get("y", 0),
+                    width=cfg.get("width"), height=cfg.get("height")
+                )
+            elif tool == "Image to PNG":
+                output_filename = f"converted_{job['id']}.png"
+                output_path = os.path.join(temp_dir, output_filename)
+                from src.services.image_service import ImageService
+                success = ImageService.convert_to_png(input_paths[0], output_path)
+            elif tool == "Image to WEBP":
+                output_filename = f"converted_{job['id']}.webp"
+                output_path = os.path.join(temp_dir, output_filename)
+                from src.services.image_service import ImageService
+                success = ImageService.convert_to_webp(input_paths[0], output_path)
+            elif tool == "Rotate PDF":
+                output_filename = f"rotated_{job['id']}.pdf"
+                output_path = os.path.join(temp_dir, output_filename)
+                cfg = job.get("configuration", {}) or {}
+                angle = int(cfg.get("angle", 90))
+                pages = cfg.get("pages")
+                success = PDFService.rotate_pdf(input_paths[0], output_path, angle=angle, pages=pages)
+            elif tool == "PDF Page Extractor":
+                output_filename = f"extracted_{job['id']}.pdf"
+                output_path = os.path.join(temp_dir, output_filename)
+                cfg = job.get("configuration", {}) or {}
+                start_page = int(cfg.get("start_page", 1))
+                end_page = cfg.get("end_page")
+                success = PDFService.extract_pages(input_paths[0], output_path, start_page=start_page, end_page=end_page)
             elif tool == "secure_pdf_password":
                 output_filename = f"secured_{job['id']}.pdf"
                 output_path = os.path.join(temp_dir, output_filename)

@@ -128,6 +128,36 @@ const toolMappings: Record<string, { title: string, description: string, keyword
     title: "Profile Picture Maker | UniConv",
     description: "Automatically remove image background and add a sleek colored circle behind it for the perfect profile picture.",
     keywords: ["profile picture maker", "pfp maker", "remove bg for pfp"]
+  },
+  "image-resizer": {
+    title: "Image Resizer | Resize Images Online | UniConv",
+    description: "Resize images online for free. Resize by pixel dimensions while maintaining aspect ratio.",
+    keywords: ["image resizer", "resize image", "image dimensions", "resize photo"]
+  },
+  "crop-image": {
+    title: "Crop Image | Crop Photos Online | UniConv",
+    description: "Crop images online by pixel coordinates or dimensions. Perfect for profile pictures and thumbnails.",
+    keywords: ["crop image", "crop photo", "image cropper", "crop picture"]
+  },
+  "image-to-png": {
+    title: "Image to PNG Converter | UniConv",
+    description: "Convert JPG, WEBP, BMP, and other image formats to PNG instantly and for free.",
+    keywords: ["image to png", "jpg to png", "webp to png", "convert to png"]
+  },
+  "image-to-webp": {
+    title: "Image to WEBP Converter | UniConv",
+    description: "Convert JPG, PNG, BMP, and other images to WEBP format for smaller file sizes.",
+    keywords: ["image to webp", "jpg to webp", "png to webp", "convert to webp"]
+  },
+  "rotate-pdf": {
+    title: "Rotate PDF | Rotate Pages Online | UniConv",
+    description: "Rotate PDF pages by 90, 180, or 270 degrees. Fix sideways pages instantly.",
+    keywords: ["rotate pdf", "pdf rotate", "rotate pdf pages", "fix pdf orientation"]
+  },
+  "pdf-page-extractor": {
+    title: "PDF Page Extractor | Extract Pages from PDF | UniConv",
+    description: "Extract specific pages from a PDF document. Save selected pages as a new PDF file.",
+    keywords: ["pdf page extractor", "extract pdf pages", "pdf page remover", "extract pages from pdf"]
   }
 };
 

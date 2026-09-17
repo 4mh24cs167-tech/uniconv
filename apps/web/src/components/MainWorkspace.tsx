@@ -79,6 +79,12 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
       "extract-audio": { view: "UNIVERSAL_CONVERTER", title: "Extract Audio", targetFormat: "mp3" },
       "html-to-pdf": { view: "UNIVERSAL_CONVERTER", title: "HTML to PDF", targetFormat: "pdf" },
       "unlock-pdf": { view: "UNIVERSAL_CONVERTER", title: "Unlock PDF", targetFormat: "pdf" },
+      "image-resizer": { view: "UNIVERSAL_CONVERTER", title: "Image Resizer", targetFormat: "png" },
+      "crop-image": { view: "UNIVERSAL_CONVERTER", title: "Crop Image", targetFormat: "png" },
+      "image-to-png": { view: "UNIVERSAL_CONVERTER", title: "Image to PNG", targetFormat: "png" },
+      "image-to-webp": { view: "UNIVERSAL_CONVERTER", title: "Image to WEBP", targetFormat: "webp" },
+      "rotate-pdf": { view: "UNIVERSAL_CONVERTER", title: "Rotate PDF", targetFormat: "pdf" },
+      "pdf-page-extractor": { view: "UNIVERSAL_CONVERTER", title: "PDF Page Extractor", targetFormat: "pdf" },
     };
 
     const mapping = toolMappings[initialSlug];
@@ -140,6 +146,24 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
   const [ttsText, setTtsText] = useState("");
   const [qrUrl, setQrUrl] = useState("");
   const [profileColor, setProfileColor] = useState("#6366f1");
+
+  // Image Resizer state
+  const [resizeWidth, setResizeWidth] = useState<string>("");
+  const [resizeHeight, setResizeHeight] = useState<string>("");
+  const [maintainAspect, setMaintainAspect] = useState(true);
+
+  // Crop Image state
+  const [cropX, setCropX] = useState<string>("0");
+  const [cropY, setCropY] = useState<string>("0");
+  const [cropWidth, setCropWidth] = useState<string>("");
+  const [cropHeight, setCropHeight] = useState<string>("");
+
+  // Rotate PDF state
+  const [rotateAngle, setRotateAngle] = useState<string>("90");
+
+  // PDF Page Extractor state
+  const [extractStart, setExtractStart] = useState<string>("1");
+  const [extractEnd, setExtractEnd] = useState<string>("");
 
   const [availableFormats, setAvailableFormats] = useState<string[]>([]);
   const [detectedCategory, setDetectedCategory] = useState<string>("Unknown");
@@ -235,6 +259,23 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
           if (compressUnit === "KB") sizeMb = sizeMb / 1024;
           configuration = { target_size_mb: sizeMb };
         }
+      } else if (activeToolTitle === "Image Resizer") {
+        const w = parseInt(resizeWidth);
+        const h = parseInt(resizeHeight);
+        if (!isNaN(w) || !isNaN(h)) {
+          configuration = { width: isNaN(w) ? undefined : w, height: isNaN(h) ? undefined : h, maintain_aspect: maintainAspect };
+        }
+      } else if (activeToolTitle === "Crop Image") {
+        configuration = {
+          x: parseInt(cropX) || 0, y: parseInt(cropY) || 0,
+          width: parseInt(cropWidth) || undefined, height: parseInt(cropHeight) || undefined
+        };
+      } else if (activeToolTitle === "Rotate PDF") {
+        configuration = { angle: parseInt(rotateAngle) || 90 };
+      } else if (activeToolTitle === "PDF Page Extractor") {
+        const start = parseInt(extractStart) || 1;
+        const end = extractEnd ? parseInt(extractEnd) : undefined;
+        configuration = { start_page: start, end_page: end };
       }
 
       setProgress(50);
@@ -562,6 +603,48 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
                   description="Remove PDF password security, giving you the freedom to use your PDFs as you want."
                   icon={<FileText className="w-10 h-10" />}
                   onClick={() => router.push("/unlock-pdf")}
+                />
+                <ToolCard
+                  isPremium={isPremium}
+                  title="Image Resizer"
+                  description="Resize images by pixel dimensions. Maintain aspect ratio or set custom width and height."
+                  icon={<FileImage className="w-10 h-10" />}
+                  onClick={() => router.push("/image-resizer")}
+                />
+                <ToolCard
+                  isPremium={isPremium}
+                  title="Crop Image"
+                  description="Crop images to a specific region by pixel coordinates and dimensions."
+                  icon={<FileImage className="w-10 h-10" />}
+                  onClick={() => router.push("/crop-image")}
+                />
+                <ToolCard
+                  isPremium={isPremium}
+                  title="Image to PNG"
+                  description="Convert JPG, WEBP, BMP, and other formats to PNG with transparency support."
+                  icon={<FileImage className="w-10 h-10" />}
+                  onClick={() => router.push("/image-to-png")}
+                />
+                <ToolCard
+                  isPremium={isPremium}
+                  title="Image to WEBP"
+                  description="Convert images to modern WEBP format for smaller file sizes and fast loading."
+                  icon={<FileImage className="w-10 h-10" />}
+                  onClick={() => router.push("/image-to-webp")}
+                />
+                <ToolCard
+                  isPremium={isPremium}
+                  title="Rotate PDF"
+                  description="Rotate PDF pages by 90, 180, or 270 degrees. Fix sideways pages instantly."
+                  icon={<FileText className="w-10 h-10" />}
+                  onClick={() => router.push("/rotate-pdf")}
+                />
+                <ToolCard
+                  isPremium={isPremium}
+                  title="PDF Page Extractor"
+                  description="Extract specific pages from a PDF. Choose start and end pages to create a new PDF."
+                  icon={<FileText className="w-10 h-10" />}
+                  onClick={() => router.push("/pdf-page-extractor")}
                 />
               </div>
             </motion.div>
@@ -1098,6 +1181,52 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
                                 <option value="KB">KB</option>
                                 <option value="MB">MB</option>
                               </select>
+                            </div>
+                          )}
+
+                          {activeToolTitle === "Image Resizer" && (
+                            <div className="flex-1 w-full flex flex-wrap items-center gap-3 bg-white p-2 rounded-lg border">
+                              <span className="text-sm font-medium text-slate-700 pl-2">Width:</span>
+                              <input type="number" min="1" placeholder="e.g. 800" value={resizeWidth} onChange={e => setResizeWidth(e.target.value)} className="w-24 p-2 border rounded-md text-sm outline-none focus:border-blue-500" />
+                              <span className="text-sm font-medium text-slate-700">Height:</span>
+                              <input type="number" min="1" placeholder="e.g. 600" value={resizeHeight} onChange={e => setResizeHeight(e.target.value)} className="w-24 p-2 border rounded-md text-sm outline-none focus:border-blue-500" />
+                              <label className="flex items-center gap-1 text-sm text-slate-600 cursor-pointer">
+                                <input type="checkbox" checked={maintainAspect} onChange={e => setMaintainAspect(e.target.checked)} className="accent-blue-500" />
+                                Maintain aspect
+                              </label>
+                            </div>
+                          )}
+
+                          {activeToolTitle === "Crop Image" && (
+                            <div className="flex-1 w-full flex flex-wrap items-center gap-3 bg-white p-2 rounded-lg border">
+                              <span className="text-sm font-medium text-slate-700 pl-2">X:</span>
+                              <input type="number" min="0" value={cropX} onChange={e => setCropX(e.target.value)} className="w-20 p-2 border rounded-md text-sm outline-none focus:border-blue-500" />
+                              <span className="text-sm font-medium text-slate-700">Y:</span>
+                              <input type="number" min="0" value={cropY} onChange={e => setCropY(e.target.value)} className="w-20 p-2 border rounded-md text-sm outline-none focus:border-blue-500" />
+                              <span className="text-sm font-medium text-slate-700">W:</span>
+                              <input type="number" min="1" placeholder="auto" value={cropWidth} onChange={e => setCropWidth(e.target.value)} className="w-20 p-2 border rounded-md text-sm outline-none focus:border-blue-500" />
+                              <span className="text-sm font-medium text-slate-700">H:</span>
+                              <input type="number" min="1" placeholder="auto" value={cropHeight} onChange={e => setCropHeight(e.target.value)} className="w-20 p-2 border rounded-md text-sm outline-none focus:border-blue-500" />
+                            </div>
+                          )}
+
+                          {activeToolTitle === "Rotate PDF" && (
+                            <div className="flex-1 w-full flex items-center gap-3 bg-white p-2 rounded-lg border">
+                              <span className="text-sm font-medium text-slate-700 pl-2">Angle:</span>
+                              <select value={rotateAngle} onChange={e => setRotateAngle(e.target.value)} className="p-2 border rounded-md text-sm outline-none focus:border-blue-500">
+                                <option value="90">90 degrees</option>
+                                <option value="180">180 degrees</option>
+                                <option value="270">270 degrees</option>
+                              </select>
+                            </div>
+                          )}
+
+                          {activeToolTitle === "PDF Page Extractor" && (
+                            <div className="flex-1 w-full flex items-center gap-3 bg-white p-2 rounded-lg border">
+                              <span className="text-sm font-medium text-slate-700 pl-2">From page:</span>
+                              <input type="number" min="1" value={extractStart} onChange={e => setExtractStart(e.target.value)} className="w-20 p-2 border rounded-md text-sm outline-none focus:border-blue-500" />
+                              <span className="text-sm font-medium text-slate-700">To page:</span>
+                              <input type="number" min="1" placeholder="end" value={extractEnd} onChange={e => setExtractEnd(e.target.value)} className="w-20 p-2 border rounded-md text-sm outline-none focus:border-blue-500" />
                             </div>
                           )}
 

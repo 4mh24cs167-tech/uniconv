@@ -270,6 +270,62 @@ class PDFService:
             raise Exception(f"Text extraction (OCR) failed: {e}")
 
     @staticmethod
+    def rotate_pdf(input_path: str, output_path: str, angle: int = 90, pages: Optional[list[int]] = None) -> bool:
+        """
+        Rotates PDF pages by the given angle (90, 180, 270).
+        If pages list is provided, only those 1-indexed pages are rotated.
+        Otherwise all pages are rotated.
+        """
+        try:
+            from PyPDF2 import PdfReader, PdfWriter
+            reader = PdfReader(input_path)
+            writer = PdfWriter()
+            total = len(reader.pages)
+
+            for i, page in enumerate(reader.pages):
+                page_num = i + 1
+                if pages is None or page_num in pages:
+                    page.rotate(angle)
+                writer.add_page(page)
+
+            with open(output_path, "wb") as f:
+                writer.write(f)
+            return True
+        except ImportError:
+            raise Exception("PyPDF2 is not installed on the server")
+        except Exception as e:
+            raise Exception(f"PDF rotation failed: {e}")
+
+    @staticmethod
+    def extract_pages(input_path: str, output_path: str, start_page: int = 1, end_page: Optional[int] = None) -> bool:
+        """
+        Extracts a range of pages from a PDF. Pages are 1-indexed.
+        If end_page is None, extracts from start_page to the end.
+        """
+        try:
+            from PyPDF2 import PdfReader, PdfWriter
+            reader = PdfReader(input_path)
+            writer = PdfWriter()
+            total = len(reader.pages)
+
+            start_idx = max(0, start_page - 1)
+            end_idx = min(end_page if end_page else total, total)
+
+            if start_idx >= end_idx:
+                raise Exception(f"Invalid page range: {start_page} to {end_page}")
+
+            for i in range(start_idx, end_idx):
+                writer.add_page(reader.pages[i])
+
+            with open(output_path, "wb") as f:
+                writer.write(f)
+            return True
+        except ImportError:
+            raise Exception("PyPDF2 is not installed on the server")
+        except Exception as e:
+            raise Exception(f"PDF page extraction failed: {e}")
+
+    @staticmethod
     def unlock_pdf(input_path: str, output_path: str, password: str = "") -> bool:
         try:
             from PyPDF2 import PdfReader, PdfWriter

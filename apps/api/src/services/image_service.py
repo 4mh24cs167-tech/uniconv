@@ -3,6 +3,113 @@ from typing import Optional
 
 class ImageService:
     @staticmethod
+    def resize_image(input_path: str, output_path: str, width: Optional[int] = None, height: Optional[int] = None, maintain_aspect: bool = True) -> bool:
+        """
+        Resizes an image. If only width or height is given, the other dimension is calculated from aspect ratio.
+        If both are given and maintain_aspect is True, width is used as the primary dimension.
+        """
+        try:
+            from PIL import Image
+
+            with Image.open(input_path) as img:
+                orig_w, orig_h = img.size
+
+                if not width and not height:
+                    # No resize needed, just copy
+                    img.save(output_path, format=img.format or "PNG")
+                    return True
+
+                if maintain_aspect:
+                    if width and not height:
+                        height = int(orig_h * (width / orig_w))
+                    elif height and not width:
+                        width = int(orig_w * (height / orig_h))
+                    elif width and height:
+                        # Both given: fit within bounds
+                        ratio = min(width / orig_w, height / orig_h)
+                        width = int(orig_w * ratio)
+                        height = int(orig_h * ratio)
+                else:
+                    width = width or orig_w
+                    height = height or orig_h
+
+                width = max(1, width)
+                height = max(1, height)
+
+                resized = img.resize((width, height), Image.LANCZOS)
+                resized.save(output_path, format=img.format or "PNG")
+            return True
+        except ImportError:
+            raise Exception("Pillow is not installed on the server")
+        except Exception as e:
+            raise Exception(f"Image resize failed: {e}")
+
+    @staticmethod
+    def crop_image(input_path: str, output_path: str, x: int = 0, y: int = 0, width: Optional[int] = None, height: Optional[int] = None) -> bool:
+        """
+        Crops an image to the given rectangle (x, y, width, height).
+        """
+        try:
+            from PIL import Image
+
+            with Image.open(input_path) as img:
+                img_w, img_h = img.size
+                crop_w = width or img_w - x
+                crop_h = height or img_h - y
+                # Clamp to image bounds
+                x = max(0, min(x, img_w - 1))
+                y = max(0, min(y, img_h - 1))
+                right = min(x + crop_w, img_w)
+                bottom = min(y + crop_h, img_h)
+                cropped = img.crop((x, y, right, bottom))
+                cropped.save(output_path, format=img.format or "PNG")
+            return True
+        except ImportError:
+            raise Exception("Pillow is not installed on the server")
+        except Exception as e:
+            raise Exception(f"Image crop failed: {e}")
+
+    @staticmethod
+    def convert_to_png(input_path: str, output_path: str) -> bool:
+        """
+        Converts any image to PNG format.
+        """
+        try:
+            from PIL import Image
+
+            with Image.open(input_path) as img:
+                if img.mode in ("RGBA", "P", "LA"):
+                    img = img.convert("RGBA")
+                elif img.mode not in ("RGB", "L"):
+                    img = img.convert("RGB")
+                img.save(output_path, "PNG")
+            return True
+        except ImportError:
+            raise Exception("Pillow is not installed on the server")
+        except Exception as e:
+            raise Exception(f"Image to PNG conversion failed: {e}")
+
+    @staticmethod
+    def convert_to_webp(input_path: str, output_path: str, quality: int = 85) -> bool:
+        """
+        Converts any image to WEBP format.
+        """
+        try:
+            from PIL import Image
+
+            with Image.open(input_path) as img:
+                if img.mode in ("RGBA", "P", "LA"):
+                    img = img.convert("RGBA")
+                elif img.mode not in ("RGB", "L"):
+                    img = img.convert("RGB")
+                img.save(output_path, "WEBP", quality=quality)
+            return True
+        except ImportError:
+            raise Exception("Pillow is not installed on the server")
+        except Exception as e:
+            raise Exception(f"Image to WEBP conversion failed: {e}")
+
+    @staticmethod
     def compress_image(input_path: str, output_path: str, target_size_mb: Optional[float] = None) -> bool:
         """
         Compresses an image file. If target_size_mb is provided, it tries to adjust the quality to meet the target size.
