@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -35,7 +35,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
   const [activeToolTitle, setActiveToolTitle] = useState<string>("");
   const [splitPage, setSplitPage] = useState<number>(1);
   const [resultFilename, setResultFilename] = useState<string | null>(null);
-  
+
   // Audio Conversions state
   const [sourceAudioFormat, setSourceAudioFormat] = useState<string>("mp3");
   const [targetAudioFormat, setTargetAudioFormat] = useState<string>("wav");
@@ -92,6 +92,9 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
   }, [initialSlug]);
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollStartTimeRef = useRef<number | null>(null);
+  const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+  const totalFilesRef = useRef(0);
 
   // Use singleton Supabase client to avoid multiple GoTrueClient instances
   const supabase = getBrowserSupabaseClient();
@@ -141,7 +144,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
   const [availableFormats, setAvailableFormats] = useState<string[]>([]);
   const [detectedCategory, setDetectedCategory] = useState<string>("Unknown");
 
-  const resetState = () => {
+  const resetState = useCallback(() => {
     setFiles([]);
     setTargetFormat("");
     setIsProcessing(false);
@@ -151,7 +154,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
     setError(null);
     setAvailableFormats([]);
     setDetectedCategory("Unknown");
-  };
+  }, []);
 
   const handleProcess = async () => {
     const isTextBasedTool = (activeToolTitle === 'HTML to PDF' && htmlUrl) || (activeToolTitle === 'Text to Speech' && ttsText) || (activeToolTitle === 'QR Code Generator' && qrUrl);
@@ -160,52 +163,47 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
       return;
     }
     setIsProcessing(true);
-    setProgress(10);
+    setProgress(0);
     setError(null);
     setResultUrl(null);
+    setResultFilename(null);
+    pollStartTimeRef.current = Date.now();
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://uniconv.onrender.com";
 
     try {
-      // 1. Upload files to Supabase Storage
       const { uploadFileToSupabaseResumable } = await import('@/lib/upload');
-      
       const fileIds: string[] = [];
-      let totalUploaded = 0;
-      
-      for (const f of files) {
-        const fileRecordOrString = await uploadFileToSupabaseResumable(f, "uploads", (p) => {
-          // Math to split the 50% progress among all files
-          const baseProgress = (totalUploaded / files.length) * 50;
-          const currentFileProgress = (p / 100) * (50 / files.length);
-          setProgress(Math.floor(baseProgress + currentFileProgress));
-        });
+      totalFilesRef.current = files.length;
 
-        if (!fileRecordOrString) {
-          throw new Error(`Failed to upload ${f.name}`);
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        try {
+          const fileName = await uploadFileToSupabaseResumable(f, "uploads", (p) => {
+            const base = (i / totalFilesRef.current) * 50;
+            const slice = (p / 100) * (50 / totalFilesRef.current);
+            setProgress(Math.floor(base + slice));
+          });
+
+          const supabase = getBrowserSupabaseClient();
+          const { data: { session } } = await supabase.auth.getSession();
+
+          const fileRes = await supabase.from("files").insert({
+              user_id: session?.user?.id || null,
+              filename: f.name,
+              original_filename: f.name,
+              size_bytes: f.size,
+              storage_key: fileName
+          }).select().single();
+
+          if (fileRes.data) {
+            fileIds.push(fileRes.data.id);
+          }
+        } catch (uploadErr) {
+          setError(`Failed to upload ${f.name}: ${uploadErr instanceof Error ? uploadErr.message : 'Unknown error'}`);
+          setIsProcessing(false);
+          return;
         }
-        
-        // Use singleton client
-        const supabase = getBrowserSupabaseClient();
-        
-        const fileName = typeof fileRecordOrString === 'string' ? fileRecordOrString : (fileRecordOrString as { id: string }).id;
-        
-        // Get user if any
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        const fileRes = await supabase.from("files").insert({
-            user_id: session?.user?.id || null,
-            filename: f.name,
-            original_filename: f.name,
-            size_bytes: f.size,
-            storage_key: fileName
-        }).select().single();
-        
-        if (fileRes.data) {
-          fileIds.push(fileRes.data.id);
-        }
-        
-        totalUploaded++;
       }
 
       let toolName = activeToolTitle;
@@ -239,7 +237,8 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
         }
       }
 
-      // 2. Create Job in FastAPI Backend
+      setProgress(50);
+
       const res = await fetch(`${apiUrl}/api/jobs${fileIds.length > 0 ? '?file_id='+fileIds[0] : ''}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -252,63 +251,61 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
       });
 
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.detail || "Failed to start job");
+        let errorMsg = "Failed to start job";
+        try { const ed = await res.json(); errorMsg = ed.detail || errorMsg; } catch { const t = await res.text(); if (t) errorMsg = t; }
+        throw new Error(errorMsg);
       }
 
       const jobData = await res.json();
       const jobId = jobData.job_id;
 
-      // 3. Poll for Job Status
-if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-       
-pollIntervalRef.current = setInterval(async () => {
-          try {
-            // Use singleton client
-            const supabase = getBrowserSupabaseClient();
-            
-            const { data, error } = await supabase.from("processing_jobs").select("*, result_file:files(*)").eq("id", jobId).single();
-           
-           if (error) {
-             console.error("Supabase polling error:", error);
-           }
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
 
-           if (data) {
-             // Use real progress from backend if available
-             if (data.progress !== null && data.progress !== undefined) {
-               setProgress(data.progress);
-             } else if (data.status === "PROCESSING") {
-               setProgress(prev => Math.min(prev + 5, 95));
-             }
+      pollIntervalRef.current = setInterval(async () => {
+        if (pollStartTimeRef.current && Date.now() - pollStartTimeRef.current > POLL_TIMEOUT_MS) {
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+          setError("Processing timed out. Try again with a smaller file.");
+          setIsProcessing(false);
+          return;
+        }
+        try {
+          const supabase = getBrowserSupabaseClient();
+          const { data, error } = await supabase.from("processing_jobs").select("*, result_file:files(*)").eq("id", jobId).single();
 
-             if (data.status === "COMPLETED") {
-               if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-               setProgress(100);
-               
-               if (data.result_file && data.result_file.storage_key) {
-                 const { data: urlData } = supabase.storage.from("results").getPublicUrl(data.result_file.storage_key, { download: true });
-                 setResultUrl(urlData.publicUrl);
-                 setResultFilename(data.result_file.storage_key);
-               } else if (data.result_file && Array.isArray(data.result_file) && data.result_file[0]?.storage_key) {
-                 const { data: urlData } = supabase.storage.from("results").getPublicUrl(data.result_file[0].storage_key, { download: true });
-                 setResultUrl(urlData.publicUrl);
-                 setResultFilename(data.result_file[0].storage_key);
-               }
-               setIsProcessing(false);
-             } else if (data.status === "FAILED") {
-               if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-               setError(data.error_message || "Processing failed");
-               setIsProcessing(false);
-             }
-           }
-         } catch (e) {
-           console.error("Polling error", e);
-         }
-       }, 2000);
+          if (error || !data) return;
+
+          if (data.progress !== null && data.progress !== undefined) {
+            setProgress(data.progress);
+          } else if (data.status === "PROCESSING") {
+            setProgress(prev => Math.min(prev + 3, 95));
+          }
+
+          if (data.status === "COMPLETED") {
+            if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+            setProgress(100);
+
+            const resultFile = Array.isArray(data.result_file) ? data.result_file[0] : data.result_file;
+            if (resultFile?.storage_key) {
+              const supabase = getBrowserSupabaseClient();
+              const { data: urlData } = supabase.storage.from("results").getPublicUrl(resultFile.storage_key, { download: true });
+              setResultUrl(urlData.publicUrl);
+              setResultFilename(resultFile.storage_key);
+            }
+            setIsProcessing(false);
+          } else if (data.status === "FAILED") {
+            if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+            setError(data.error_message || "Processing failed");
+            setIsProcessing(false);
+          }
+        } catch (e) {
+          console.error("Polling error", e);
+        }
+      }, 2000);
 
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "An unexpected error occurred.");
       setIsProcessing(false);
+      setProgress(0);
     }
   };
 
@@ -317,7 +314,7 @@ pollIntervalRef.current = setInterval(async () => {
       "min-h-screen transition-colors duration-500 font-sans",
       isPremium ? "dark bg-slate-950 text-slate-50" : "bg-slate-50 text-slate-900"
     )}>
-      
+
 
       {/* Header */}
       <header className={clsx(
@@ -358,7 +355,7 @@ pollIntervalRef.current = setInterval(async () => {
       <main className="max-w-6xl mx-auto px-6 py-12">
         <AnimatePresence mode="wait">
           {view === "HUB" && (
-            <motion.div 
+            <motion.div
               key="hub"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -384,184 +381,184 @@ pollIntervalRef.current = setInterval(async () => {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="Audio Conversions" 
+                  title="Audio Conversions"
                   description="Convert your audio files between popular formats."
                   icon={<Music className="w-10 h-10" />}
                   onClick={() => router.push("/audio-converter")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="Secure PDF" 
+                  title="Secure PDF"
                   description="Protect and secure your PDF documents with passwords, permissions, watermarks and redaction."
                   icon={<Shield className="w-10 h-10" />}
                   onClick={() => router.push("/secure-pdf")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="Merge PDF" 
+                  title="Merge PDF"
                   description="Combine PDFs in the order you want with the easiest PDF merger available."
                   icon={<FileText className="w-10 h-10" />}
                   onClick={() => router.push("/merge-pdf")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="Split PDF" 
+                  title="Split PDF"
                   description="Separate one page or a whole set for easy conversion into independent PDF files."
                   icon={<FileText className="w-10 h-10" />}
                   onClick={() => router.push("/split-pdf")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="Compress PDF" 
+                  title="Compress PDF"
                   description="Reduce file size while optimizing for maximal PDF quality."
                   icon={<FileArchive className="w-10 h-10" />}
                   onClick={() => router.push("/compress-pdf")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="PDF to Word" 
+                  title="PDF to Word"
                   description="Easily convert your PDF files into easy to edit DOC and DOCX documents."
                   icon={<FileText className="w-10 h-10" />}
                   onClick={() => router.push("/pdf-to-word")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="PDF to PowerPoint" 
+                  title="PDF to PowerPoint"
                   description="Turn your PDF files into easy to edit PPT and PPTX slideshows."
                   icon={<FileText className="w-10 h-10" />}
                   onClick={() => router.push("/pdf-to-powerpoint")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="PDF to Excel" 
+                  title="PDF to Excel"
                   description="Extract data from PDF to Excel spreadsheets in a few seconds."
                   icon={<FileSpreadsheet className="w-10 h-10" />}
                   onClick={() => router.push("/pdf-to-excel")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="Word to PDF" 
+                  title="Word to PDF"
                   description="Make DOC and DOCX files easy to read by converting them to PDF."
                   icon={<FileText className="w-10 h-10" />}
                   onClick={() => router.push("/word-to-pdf")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="PowerPoint to PDF" 
+                  title="PowerPoint to PDF"
                   description="Make PPT and PPTX slideshows easy to view by converting them to PDF."
                   icon={<FileText className="w-10 h-10" />}
                   onClick={() => router.push("/powerpoint-to-pdf")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="Excel to PDF" 
+                  title="Excel to PDF"
                   description="Make EXCEL spreadsheets easy to read by converting them to PDF."
                   icon={<FileSpreadsheet className="w-10 h-10" />}
                   onClick={() => router.push("/excel-to-pdf")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="JPG to PDF" 
+                  title="JPG to PDF"
                   description="Convert JPG images to PDF in seconds. Easily adjust orientation and margins."
                   icon={<FileImage className="w-10 h-10" />}
                   onClick={() => router.push("/jpg-to-pdf")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="PDF to JPG" 
+                  title="PDF to JPG"
                   description="Extract all images inside a PDF or convert each page to a JPG image."
                   icon={<FileImage className="w-10 h-10" />}
                   onClick={() => router.push("/pdf-to-jpg")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="Image Compressor" 
+                  title="Image Compressor"
                   description="Compress your images to the smallest file size while keeping perfect quality. Specify custom target sizes."
                   icon={<FileImage className="w-10 h-10" />}
                   onClick={() => router.push("/compress-image")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="Extract Text (OCR)" 
+                  title="Extract Text (OCR)"
                   description="Scan images or PDFs and use A.I. to extract editable text files instantly."
                   icon={<FileText className="w-10 h-10 text-purple-500" />}
-                  onClick={() => { 
+                  onClick={() => {
                     if (userPlan === "pro" || userPlan === "premium") {
-                      router.push("/extract-text-ocr"); 
+                      router.push("/extract-text-ocr");
                     } else {
                       alert("Extract Text (OCR) is a Pro/Premium feature. Please upgrade your plan.");
                       router.push("/pricing");
                     }
                   }}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="Watermark Remover" 
+                  title="Watermark Remover"
                   description="Automatically detect and remove watermarks from images or videos."
                   icon={<Eraser className="w-10 h-10" />}
                   onClick={() => router.push("/watermark-remover")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="Text to Speech" 
+                  title="Text to Speech"
                   description="Convert up to 40 seconds of text into a high-quality MP3 audio file instantly."
                   icon={<FileArchive className="w-10 h-10" />}
                   onClick={() => router.push("/text-to-speech")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="QR Code Generator" 
+                  title="QR Code Generator"
                   description="Paste a URL or text to generate a downloadable QR code image."
                   icon={<FileImage className="w-10 h-10" />}
                   onClick={() => router.push("/qr-code-generator")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="Profile Picture Maker" 
+                  title="Profile Picture Maker"
                   description="Automatically remove image background and add a sleek colored circle behind it."
                   icon={<FileImage className="w-10 h-10" />}
                   onClick={() => router.push("/profile-picture-maker")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="Remove Background" 
+                  title="Remove Background"
                   description="Use AI to automatically remove the background from any image."
                   icon={<FileImage className="w-10 h-10" />}
                   onClick={() => router.push("/remove-background")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="Compress Video" 
+                  title="Compress Video"
                   description="Reduce video file size significantly while maintaining good visual quality."
                   icon={<FileArchive className="w-10 h-10" />}
                   onClick={() => router.push("/compress-video")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="Video to GIF" 
+                  title="Video to GIF"
                   description="Convert MP4, MOV, and AVI videos into looping animated GIFs."
                   icon={<FileImage className="w-10 h-10" />}
                   onClick={() => router.push("/video-to-gif")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="Extract Audio" 
+                  title="Extract Audio"
                   description="Extract high-quality audio (MP3, WAV) from any video file instantly."
                   icon={<FileArchive className="w-10 h-10" />}
                   onClick={() => router.push("/extract-audio")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="HTML to PDF" 
+                  title="HTML to PDF"
                   description="Convert webpages in HTML to PDF. Enter the URL or upload an HTML file."
                   icon={<FileText className="w-10 h-10" />}
                   onClick={() => router.push("/html-to-pdf")}
                 />
-                <ToolCard 
+                <ToolCard
                   isPremium={isPremium}
-                  title="Unlock PDF" 
+                  title="Unlock PDF"
                   description="Remove PDF password security, giving you the freedom to use your PDFs as you want."
                   icon={<FileText className="w-10 h-10" />}
                   onClick={() => router.push("/unlock-pdf")}
@@ -578,14 +575,14 @@ pollIntervalRef.current = setInterval(async () => {
               exit={{ opacity: 0 }}
               className="w-full max-w-7xl mx-auto"
             >
-              <button 
+              <button
                 onClick={() => router.push("/")}
                 className="flex items-center space-x-2 text-sm font-semibold mb-6 text-slate-500 hover:text-[#e5322d] transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span>Back to Hub</span>
               </button>
-              
+
               <div className={clsx(
                 "grid grid-cols-1 md:grid-cols-4 gap-6 border shadow-lg rounded-2xl overflow-hidden",
                 isPremium ? "bg-slate-900/80 border-white/10" : "bg-white border-slate-200 text-slate-900"
@@ -600,8 +597,8 @@ pollIntervalRef.current = setInterval(async () => {
                         onClick={() => setSecureTool(tool)}
                         className={clsx(
                           "w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors",
-                          secureTool === tool 
-                            ? "bg-[#e5322d] text-white shadow-md" 
+                          secureTool === tool
+                            ? "bg-[#e5322d] text-white shadow-md"
                             : isPremium ? "text-slate-300 hover:bg-slate-700" : "text-slate-600 hover:bg-slate-200"
                         )}
                       >
@@ -614,7 +611,7 @@ pollIntervalRef.current = setInterval(async () => {
                     ))}
                   </div>
                 </div>
-                
+
                 {/* Center / Right Content */}
                 <div className="md:col-span-3 p-6 flex flex-col h-full min-h-[500px]">
                   {!resultUrl ? (
@@ -638,47 +635,41 @@ pollIntervalRef.current = setInterval(async () => {
 
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1">
                         <div>
-                          
-                      {activeToolTitle === "Text to Speech" && (
+
+                      {activeToolTitle === "Text to Speech" && ttsText && (
                          <div className="mb-6 p-6 rounded-2xl border bg-white shadow-sm dark:bg-slate-900 dark:border-slate-800">
                             <label className="block text-sm font-bold mb-3">Enter Text to Convert to Audio (max ~40 seconds speech)</label>
                             <div className="flex flex-col gap-3">
                                <textarea placeholder="Hello, welcome to my video..." rows={4}
-                                  className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#e5322d] dark:bg-slate-800 dark:border-slate-700" 
+                                  className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#e5322d] dark:bg-slate-800 dark:border-slate-700"
                                   value={ttsText} onChange={e => setTtsText(e.target.value)} />
-                               <button onClick={handleProcess} className="bg-[#e5322d] hover:bg-[#cc2b27] text-white px-6 py-3 rounded-xl font-bold transition-colors">
-                                 Generate MP3 Audio
-                               </button>
                             </div>
                          </div>
                       )}
-                      
-                      {activeToolTitle === "QR Code Generator" && (
+
+                      {activeToolTitle === "QR Code Generator" && qrUrl && (
                          <div className="mb-6 p-6 rounded-2xl border bg-white shadow-sm dark:bg-slate-900 dark:border-slate-800">
                             <label className="block text-sm font-bold mb-3">Enter URL or Text for QR Code</label>
                             <div className="flex flex-col sm:flex-row gap-3">
-                               <input type="text" placeholder="https://example.com" 
-                                  className="flex-1 rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#e5322d] dark:bg-slate-800 dark:border-slate-700" 
+                               <input type="text" placeholder="https://example.com"
+                                  className="flex-1 rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#e5322d] dark:bg-slate-800 dark:border-slate-700"
                                   value={qrUrl} onChange={e => setQrUrl(e.target.value)} />
-                               <button onClick={handleProcess} className="bg-[#e5322d] hover:bg-[#cc2b27] text-white px-6 py-3 rounded-xl font-bold transition-colors whitespace-nowrap">
-                                 Generate QR Code
-                               </button>
                             </div>
                          </div>
                       )}
-                      
+
                       {activeToolTitle === "Profile Picture Maker" && (
                          <div className="mb-6 p-6 rounded-2xl border bg-white shadow-sm dark:bg-slate-900 dark:border-slate-800 flex items-center justify-between">
                             <label className="text-sm font-bold">Background Circle Color:</label>
                             <input type="color" value={profileColor} onChange={e => setProfileColor(e.target.value)} className="w-12 h-12 rounded cursor-pointer border-0 p-0 m-0" />
                          </div>
                       )}
-                      
+
                       {!(activeToolTitle === "Text to Speech" || activeToolTitle === "QR Code Generator") && (
-                        <UploadZone 
+                        <UploadZone
                             isPremium={isPremium}
                             multiple={false}
-                            selectedFiles={files} 
+                            selectedFiles={files}
                             onFileRemove={(index) => {
                               setFiles(prev => {
                                 const newFiles = [...prev];
@@ -688,7 +679,10 @@ pollIntervalRef.current = setInterval(async () => {
                               });
                             }}
                             onCancel={() => {
-                              if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+                              if (pollIntervalRef.current) {
+                                clearInterval(pollIntervalRef.current);
+                                pollIntervalRef.current = null;
+                              }
                               setIsProcessing(false);
                               setProgress(0);
                             }}
@@ -705,9 +699,9 @@ pollIntervalRef.current = setInterval(async () => {
                             {secureTool === "password" && (
                               <div>
                                 <Label className={clsx("mb-2 block", isPremium ? "text-slate-300" : "")}>Document Password</Label>
-                                <input 
-                                  type="password" 
-                                  placeholder="Enter secure password" 
+                                <input
+                                  type="password"
+                                  placeholder="Enter secure password"
                                   className={clsx("w-full border p-3 rounded-md", isPremium ? "bg-slate-900 border-slate-700 text-white" : "text-slate-900")}
                                   value={secureConfig.password || ""}
                                   onChange={e => setSecureConfig({...secureConfig, password: e.target.value})}
@@ -719,12 +713,12 @@ pollIntervalRef.current = setInterval(async () => {
                               <div className="space-y-3">
                                 {['print', 'copy', 'edit', 'comments', 'fill_forms'].map(p => (
                                   <label key={p} className="flex items-center space-x-3 cursor-pointer">
-                                    <input 
-                                      type="checkbox" 
+                                    <input
+                                      type="checkbox"
                                       className="w-4 h-4 rounded text-[#e5322d] focus:ring-[#e5322d]"
                                       checked={secureConfig.permissions?.[p] || false}
                                       onChange={e => setSecureConfig({
-                                        ...secureConfig, 
+                                        ...secureConfig,
                                         permissions: {...(secureConfig.permissions || {}), [p]: e.target.checked}
                                       })}
                                     />
@@ -737,9 +731,9 @@ pollIntervalRef.current = setInterval(async () => {
                             {secureTool === "watermark" && (
                               <div>
                                 <Label className={clsx("mb-2 block", isPremium ? "text-slate-300" : "")}>Watermark Text</Label>
-                                <input 
-                                  type="text" 
-                                  placeholder="CONFIDENTIAL" 
+                                <input
+                                  type="text"
+                                  placeholder="CONFIDENTIAL"
                                   className={clsx("w-full border p-3 rounded-md", isPremium ? "bg-slate-900 border-slate-700 text-white" : "text-slate-900")}
                                   value={secureConfig.text || ""}
                                   onChange={e => setSecureConfig({...secureConfig, text: e.target.value})}
@@ -750,9 +744,9 @@ pollIntervalRef.current = setInterval(async () => {
                             {secureTool === "redact" && (
                               <div>
                                 <Label className={clsx("mb-2 block", isPremium ? "text-slate-300" : "")}>Text to Redact</Label>
-                                <input 
-                                  type="text" 
-                                  placeholder="e.g. John Doe, SSN, etc." 
+                                <input
+                                  type="text"
+                                  placeholder="e.g. John Doe, SSN, etc."
                                   className={clsx("w-full border p-3 rounded-md mb-2", isPremium ? "bg-slate-900 border-slate-700 text-white" : "text-slate-900")}
                                   value={secureConfig.text || ""}
                                   onChange={e => setSecureConfig({...secureConfig, text: e.target.value})}
@@ -766,7 +760,7 @@ pollIntervalRef.current = setInterval(async () => {
                             {secureTool === "metadata" && (
                               <div>
                                 <p className={clsx("text-sm", isPremium ? "text-slate-400" : "text-slate-600")}>
-                                  Clicking &apos;Apply Security&apos; will completely wipe all metadata (Author, Title, Creator, Producer) from the uploaded PDF.
+                                  Clicking 'Apply Security' will completely wipe all metadata (Author, Title, Creator, Producer) from the uploaded PDF.
                                 </p>
                               </div>
                             )}
@@ -790,14 +784,14 @@ pollIntervalRef.current = setInterval(async () => {
                         <CheckCircle2 className="w-16 h-16" />
                       </div>
                       <h3 className="text-3xl font-extrabold mb-4 text-slate-800">
-                        PDF Secured Successfully ✓
+                        PDF Secured Successfully
                       </h3>
                       <p className="mb-8 text-lg text-slate-600">
                         Operations applied: {secureTool}
                       </p>
-                      
+
                       <div className="flex flex-col gap-4 w-full justify-center sm:w-auto mx-auto">
-                        <Button 
+                        <Button
                           size="lg"
                           onClick={async () => {
                             try {
@@ -820,7 +814,7 @@ pollIntervalRef.current = setInterval(async () => {
                           <Download className="w-5 h-5 mr-2" />
                           Download Secured PDF
                         </Button>
-                        <Button 
+                        <Button
                           variant="outline"
                           size="lg"
                           onClick={resetState}
@@ -844,7 +838,7 @@ pollIntervalRef.current = setInterval(async () => {
               exit={{ opacity: 0 }}
               className="max-w-4xl mx-auto"
             >
-              <button 
+              <button
                 onClick={() => router.push("/")}
                 className="flex items-center space-x-2 text-sm font-semibold mb-6 text-slate-500 hover:text-[#e5322d] transition-colors"
               >
@@ -854,8 +848,8 @@ pollIntervalRef.current = setInterval(async () => {
 
               <div className={clsx(
                 "rounded-3xl p-8 sm:p-12 border transition-all duration-500",
-                isPremium 
-                  ? "bg-slate-900/60 border-white/10 shadow-2xl backdrop-blur-xl" 
+                isPremium
+                  ? "bg-slate-900/60 border-white/10 shadow-2xl backdrop-blur-xl"
                   : "bg-white border-slate-200 shadow-xl shadow-slate-200/50"
               )}>
                 <div className="text-center mb-10">
@@ -889,8 +883,8 @@ pollIntervalRef.current = setInterval(async () => {
                          <div className="mb-6 p-6 rounded-2xl border bg-white shadow-sm dark:bg-slate-900 dark:border-slate-800">
                             <label className="block text-sm font-bold mb-3">Convert via URL</label>
                             <div className="flex flex-col sm:flex-row gap-3">
-                               <input type="url" placeholder="https://example.com" 
-                                  className="flex-1 rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#e5322d] dark:bg-slate-800 dark:border-slate-700" 
+                               <input type="url" placeholder="https://example.com"
+                                  className="flex-1 rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#e5322d] dark:bg-slate-800 dark:border-slate-700"
                                   value={htmlUrl} onChange={e => setHtmlUrl(e.target.value)} />
                                <button onClick={handleProcess} className="bg-[#e5322d] hover:bg-[#cc2b27] text-white px-6 py-3 rounded-xl font-bold transition-colors whitespace-nowrap">
                                  Convert URL
@@ -899,13 +893,13 @@ pollIntervalRef.current = setInterval(async () => {
                             <div className="text-center mt-6 mb-2 text-sm font-bold text-slate-400">OR UPLOAD HTML FILE BELOW</div>
                          </div>
                       )}
-                      
+
                       {activeToolTitle === "Text to Speech" && (
                          <div className="mb-6 p-6 rounded-2xl border bg-white shadow-sm dark:bg-slate-900 dark:border-slate-800">
                             <label className="block text-sm font-bold mb-3">Enter Text to Convert to Audio (max ~40 seconds speech)</label>
                             <div className="flex flex-col gap-3">
                                <textarea placeholder="Hello, welcome to my video..." rows={4}
-                                  className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#e5322d] dark:bg-slate-800 dark:border-slate-700" 
+                                  className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#e5322d] dark:bg-slate-800 dark:border-slate-700"
                                   value={ttsText} onChange={e => setTtsText(e.target.value)} />
                                <button onClick={handleProcess} className="bg-[#e5322d] hover:bg-[#cc2b27] text-white px-6 py-3 rounded-xl font-bold transition-colors">
                                  Generate MP3 Audio
@@ -913,13 +907,13 @@ pollIntervalRef.current = setInterval(async () => {
                             </div>
                          </div>
                       )}
-                      
+
                       {activeToolTitle === "QR Code Generator" && (
                          <div className="mb-6 p-6 rounded-2xl border bg-white shadow-sm dark:bg-slate-900 dark:border-slate-800">
                             <label className="block text-sm font-bold mb-3">Enter URL or Text for QR Code</label>
                             <div className="flex flex-col sm:flex-row gap-3">
-                               <input type="text" placeholder="https://example.com" 
-                                  className="flex-1 rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#e5322d] dark:bg-slate-800 dark:border-slate-700" 
+                               <input type="text" placeholder="https://example.com"
+                                  className="flex-1 rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#e5322d] dark:bg-slate-800 dark:border-slate-700"
                                   value={qrUrl} onChange={e => setQrUrl(e.target.value)} />
                                <button onClick={handleProcess} className="bg-[#e5322d] hover:bg-[#cc2b27] text-white px-6 py-3 rounded-xl font-bold transition-colors whitespace-nowrap">
                                  Generate QR Code
@@ -927,25 +921,25 @@ pollIntervalRef.current = setInterval(async () => {
                             </div>
                          </div>
                       )}
-                      
+
                       {activeToolTitle === "Profile Picture Maker" && (
                          <div className="mb-6 p-6 rounded-2xl border bg-white shadow-sm dark:bg-slate-900 dark:border-slate-800 flex items-center justify-between">
                             <label className="text-sm font-bold">Background Circle Color:</label>
                             <input type="color" value={profileColor} onChange={e => setProfileColor(e.target.value)} className="w-12 h-12 rounded cursor-pointer border-0 p-0 m-0" />
                          </div>
                       )}
-                      
+
                       {!(activeToolTitle === "Text to Speech" || activeToolTitle === "QR Code Generator") && (
-                        <UploadZone 
+                        <UploadZone
                         isPremium={isPremium}
                         multiple={activeToolTitle === "Merge PDF"}
-                        selectedFiles={files} 
+                        selectedFiles={files}
                         onFileRemove={(index) => {
                           setFiles(prev => {
                             const newFiles = [...prev];
                             newFiles.splice(index, 1);
                             if (newFiles.length === 0) {
-                              resetState(); 
+                              resetState();
                             }
                             return newFiles;
                           });
@@ -960,8 +954,8 @@ pollIntervalRef.current = setInterval(async () => {
                         }}
                         onFileSelect={async (newFiles) => {
                           const isMerge = activeToolTitle === "Merge PDF";
-                          const limitMB = isPremium ? Infinity : 350; 
-                          
+                          const limitMB = isPremium ? Infinity : 350;
+
                           for (const f of newFiles) {
                             const fileSizeMB = f.size / (1024 * 1024);
                             if (fileSizeMB > limitMB) {
@@ -976,12 +970,12 @@ pollIntervalRef.current = setInterval(async () => {
                           } else {
                             setFiles([newFiles[0]]);
                           }
-                          
+
                           if (view === "UNIVERSAL_CONVERTER") {
                             const { getAvailableTargetFormats, detectCategory } = await import('@/lib/conversions');
                             const formats = getAvailableTargetFormats(newFiles[0].name);
                             const cat = detectCategory(newFiles[0].name);
-                            
+
                             if (formats.length === 0) {
                               setError("Unsupported file format.");
                             } else {
@@ -1000,7 +994,7 @@ pollIntervalRef.current = setInterval(async () => {
                       )}
 
                       {files.length > 0 && !isProcessing && (
-                        <motion.div 
+                        <motion.div
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           className="flex flex-col sm:flex-row items-end gap-4 bg-slate-500/5 p-4 rounded-xl border border-slate-500/10"
@@ -1009,8 +1003,8 @@ pollIntervalRef.current = setInterval(async () => {
                             <div className="flex-1 w-full flex items-center gap-4">
                               <div className="flex-1">
                                 <Label className="text-xs mb-1 block">From</Label>
-                                <select 
-                                  value={sourceAudioFormat} 
+                                <select
+                                  value={sourceAudioFormat}
                                   onChange={(e) => setSourceAudioFormat(e.target.value)}
                                   className={clsx("w-full rounded-md border px-3 py-2 text-sm", isPremium ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200")}
                                 >
@@ -1022,8 +1016,8 @@ pollIntervalRef.current = setInterval(async () => {
                               <ArrowLeft className="w-5 h-5 text-slate-400 rotate-180 mt-4" />
                               <div className="flex-1">
                                 <Label className="text-xs mb-1 block">To</Label>
-                                <select 
-                                  value={targetAudioFormat} 
+                                <select
+                                  value={targetAudioFormat}
                                   onChange={(e) => setTargetAudioFormat(e.target.value)}
                                   className={clsx("w-full rounded-md border px-3 py-2 text-sm", isPremium ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200")}
                                 >
@@ -1038,8 +1032,8 @@ pollIntervalRef.current = setInterval(async () => {
                           {view === "WATERMARK_REMOVER" && (
                             <div className="flex-1 w-full">
                               <Label className="text-xs mb-1 block">Watermark Position</Label>
-                              <select 
-                                value={watermarkPos} 
+                              <select
+                                value={watermarkPos}
                                 onChange={(e) => setWatermarkPos(e.target.value)}
                                 className={clsx("w-full rounded-md border px-3 py-2 text-sm", isPremium ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200")}
                               >
@@ -1053,14 +1047,14 @@ pollIntervalRef.current = setInterval(async () => {
                             </div>
                           )}
 
-                          {view === "UNIVERSAL_CONVERTER" && 
-                           !activeToolTitle?.startsWith("Compress") && 
-                           !activeToolTitle?.includes("Merge") && 
-                           !activeToolTitle?.includes("Split") && 
+                          {view === "UNIVERSAL_CONVERTER" &&
+                           !activeToolTitle?.startsWith("Compress") &&
+                           !activeToolTitle?.includes("Merge") &&
+                           !activeToolTitle?.includes("Split") &&
                            !activeToolTitle?.includes("to") && (
                             <div className="flex-1 w-full">
-                              <FormatPicker 
-                                formats={availableFormats} 
+                              <FormatPicker
+                                formats={availableFormats}
                                 selectedFormat={targetFormat}
                                 onSelect={setTargetFormat}
                               />
@@ -1071,13 +1065,13 @@ pollIntervalRef.current = setInterval(async () => {
                               )}
                             </div>
                           )}
-                          
+
                           {activeToolTitle === "Split PDF" && (
                             <div className="flex-1 w-full flex items-center gap-3 bg-white p-2 rounded-lg border">
                               <span className="text-sm font-medium text-slate-700 pl-2">Split after page:</span>
-                              <input 
-                                type="number" 
-                                min="1" 
+                              <input
+                                type="number"
+                                min="1"
                                 value={splitPage}
                                 onChange={(e) => setSplitPage(parseInt(e.target.value) || 1)}
                                 className="w-20 p-2 border rounded-md text-sm outline-none focus:border-blue-500"
@@ -1088,16 +1082,16 @@ pollIntervalRef.current = setInterval(async () => {
                           {(activeToolTitle === "Compress Image" || activeToolTitle === "Compress Video") && (
                             <div className="flex-1 w-full flex items-center gap-3 bg-white p-2 rounded-lg border">
                               <span className="text-sm font-medium text-slate-700 pl-2">Target Size:</span>
-                              <input 
-                                type="number" 
-                                min="1" 
+                              <input
+                                type="number"
+                                min="1"
                                 placeholder="Auto"
                                 value={compressSize}
                                 onChange={(e) => setCompressSize(e.target.value)}
                                 className="w-20 p-2 border rounded-md text-sm outline-none focus:border-blue-500"
                               />
-                              <select 
-                                value={compressUnit} 
+                              <select
+                                value={compressUnit}
                                 onChange={(e) => setCompressUnit(e.target.value)}
                                 className="p-2 border rounded-md text-sm outline-none focus:border-blue-500"
                               >
@@ -1113,8 +1107,8 @@ pollIntervalRef.current = setInterval(async () => {
                             size="lg"
                             className={clsx(
                               "w-full sm:w-auto min-w-[200px] h-14 text-lg font-bold shadow-lg transition-all hover:scale-105 active:scale-95",
-                              isPremium 
-                                ? "bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white shadow-purple-500/25" 
+                              isPremium
+                                ? "bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white shadow-purple-500/25"
                                 : "bg-slate-900 hover:bg-slate-800 text-white"
                             )}
                           >
@@ -1137,7 +1131,7 @@ pollIntervalRef.current = setInterval(async () => {
                       )}
                     </>
                   ) : (
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       className="flex flex-col items-center justify-center p-12 text-center"
@@ -1151,9 +1145,9 @@ pollIntervalRef.current = setInterval(async () => {
                       <p className={clsx("mb-8 text-lg", isPremium ? "text-slate-400" : "text-slate-600")}>
                         Your file has been processed successfully.
                       </p>
-                      
+
                       <div className="flex flex-col gap-4 w-full justify-center sm:w-auto mx-auto">
-                        <Button 
+                        <Button
                           size="lg"
                           onClick={async () => {
                             try {
@@ -1165,7 +1159,7 @@ pollIntervalRef.current = setInterval(async () => {
                               const extMatch = resultFilename ? resultFilename.match(/\.([a-zA-Z0-9]+)$/) : null;
                               const ext = extMatch ? extMatch[1] : (targetFormat || 'pdf');
 
-                              a.download = view === "WATERMARK_REMOVER" 
+                              a.download = view === "WATERMARK_REMOVER"
                                 ? `cleaned_${files[0]?.name || 'file'}`
                                 : view === "PDF_TO_EXCEL"
                                 ? `template_${files[0]?.name.split('.')[0] || 'data'}.xlsx`
@@ -1176,22 +1170,21 @@ pollIntervalRef.current = setInterval(async () => {
                               window.URL.revokeObjectURL(blobUrl);
                             } catch (e) {
                               console.error("Download failed", e);
-                              // Fallback if fetch fails (e.g. CORS)
                               window.open(resultUrl, '_blank');
                             }
                           }}
                           className={clsx(
                             "h-14 px-8 text-lg font-bold shadow-lg transition-all hover:scale-105 active:scale-95",
-                            isPremium 
-                              ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white shadow-green-500/25" 
+                            isPremium
+                              ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white shadow-green-500/25"
                               : "bg-green-600 hover:bg-green-500 text-white"
                           )}
                         >
                           <Download className="w-6 h-6 mr-3" />
                           Download Result
                         </Button>
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           onClick={resetState}
                           className={clsx("font-semibold mt-4", isPremium ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-900")}
                         >
@@ -1214,10 +1207,10 @@ pollIntervalRef.current = setInterval(async () => {
         </AnimatePresence>
       </main>
 
-      <PremiumGate 
-        isOpen={showPremiumGate} 
-        onClose={() => setShowPremiumGate(false)} 
-        fileSizeMB={rejectedFileSize} 
+      <PremiumGate
+        isOpen={showPremiumGate}
+        onClose={() => setShowPremiumGate(false)}
+        fileSizeMB={rejectedFileSize}
       />
     </div>
   );

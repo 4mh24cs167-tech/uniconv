@@ -1,9 +1,13 @@
 import os
-from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Depends
+import asyncio
+import tempfile
+from datetime import datetime, timedelta, timezone
+from typing import Optional
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Depends, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from supabase import create_client, Client
 from pydantic import BaseModel
-from typing import Optional
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -23,60 +27,40 @@ app.add_middleware(
 )
 
 url: str = os.getenv("SUPABASE_URL", "")
-# Use service role key for backend operations to bypass RLS
 service_key: str = os.getenv("SUPABASE_SERVICE_KEY", "")
-# Fallback to anon key for backwards compatibility
 anon_key: str = os.getenv("SUPABASE_KEY", "")
 key: str = service_key or anon_key
 
-# We initialize a global Supabase client with service role key for backend operations.
-# For secure routes, we will verify the user's JWT from the request header.
 supabase: Client = create_client(url, key) if url and key else None
 
 # --- APScheduler Setup for Cleanup ---
 from apscheduler.schedulers.background import BackgroundScheduler
-from datetime import datetime, timedelta, timezone
 
 def cleanup_old_files():
-    """
-    Deletes files and jobs older than 24 hours from Supabase to save storage space.
-    """
     try:
         if not supabase:
             return
-            
         print("Running scheduled cleanup job for old files...")
         threshold_date = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
-        
-        # Find old files
         old_files = supabase.table("files").select("id, storage_key").lt("created_at", threshold_date).execute()
-        
         if old_files.data:
             print(f"Found {len(old_files.data)} old files to delete.")
-            
-            # Delete from Storage buckets
             for file in old_files.data:
-                key = file.get("storage_key")
-                if key:
-                    # Try to delete from both buckets since we don't track which one it's in here
+                key_val = file.get("storage_key")
+                if key_val:
                     try:
-                        supabase.storage.from_("uploads").remove([key])
-                        supabase.storage.from_("results").remove([key])
+                        supabase.storage.from_("uploads").remove([key_val])
+                        supabase.storage.from_("results").remove([key_val])
                     except Exception as e:
-                        print(f"Failed to delete storage key {key}: {e}")
-            
-            # Delete from DB
+                        print(f"Failed to delete storage key {key_val}: {e}")
             file_ids = [f["id"] for f in old_files.data]
-            # Batch delete in chunks of 50 if needed, but for simplicity:
             supabase.table("files").delete().in_("id", file_ids).execute()
-            
         print("Cleanup job finished.")
     except Exception as e:
         print(f"Error during cleanup job: {e}")
 
-# Start the scheduler when the app boots
 scheduler = BackgroundScheduler()
-scheduler.add_job(cleanup_old_files, 'interval', hours=12) # Run every 12 hours
+scheduler.add_job(cleanup_old_files, 'interval', hours=12)
 scheduler.start()
 # -----------------------------------
 
@@ -86,7 +70,6 @@ def read_root():
 
 # --- Razorpay Setup ---
 import razorpay
-from fastapi import Request, Header
 
 RZP_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
 RZP_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
@@ -100,22 +83,15 @@ class RazorpayOrderRequest(BaseModel):
 
 @app.post("/api/subscriptions/create-order")
 async def create_razorpay_order(req: RazorpayOrderRequest):
-    """
-    Creates a Razorpay order for the requested plan.
-    """
     if not razorpay_client:
         raise HTTPException(status_code=500, detail="Razorpay not configured on server")
-        
-    # Map plan to amount (in smallest currency unit, e.g., cents/paise)
     plan_prices = {
-        "pro": 499, # $4.99 -> 499 cents
+        "pro": 499,
         "premium": 999
     }
-    
     amount = plan_prices.get(req.plan_id.lower())
     if not amount:
         raise HTTPException(status_code=400, detail="Invalid plan ID")
-        
     try:
         order_data = {
             "amount": amount,
@@ -127,7 +103,6 @@ async def create_razorpay_order(req: RazorpayOrderRequest):
             }
         }
         order = razorpay_client.order.create(data=order_data)
-        
         return {
             "status": "success",
             "order_id": order["id"],
@@ -140,35 +115,23 @@ async def create_razorpay_order(req: RazorpayOrderRequest):
 
 @app.post("/api/subscriptions/webhook")
 async def razorpay_webhook(request: Request, x_razorpay_signature: str = Header(None)):
-    """
-    Handles successful payment webhooks to auto-upgrade users.
-    """
     if not razorpay_client or not RZP_WEBHOOK_SECRET:
         return {"status": "ignored", "reason": "Razorpay not configured"}
-        
     body = await request.body()
-    
     try:
-        # Verify webhook signature
         razorpay_client.utility.verify_webhook_signature(
             body.decode("utf-8"),
             x_razorpay_signature,
             RZP_WEBHOOK_SECRET
         )
-        
         payload = await request.json()
         event = payload.get("event")
-        
         if event == "payment.captured" or event == "order.paid":
-            # Extract notes to find user_id and plan_id
             payment_entity = payload["payload"].get("payment", {}).get("entity", {})
             notes = payment_entity.get("notes", {})
-            
             user_id = notes.get("user_id")
             plan_name = notes.get("plan_id")
-            
             if user_id and plan_name:
-                # Update user in DB with exact plan.id
                 plan_res = supabase.table("plans").select("id").eq("name", plan_name.capitalize()).execute()
                 if plan_res.data:
                     plan_id = plan_res.data[0]["id"]
@@ -176,25 +139,14 @@ async def razorpay_webhook(request: Request, x_razorpay_signature: str = Header(
                         "plan_id": plan_id,
                         "updated_at": datetime.now(timezone.utc).isoformat()
                     }).eq("id", user_id).execute()
-                    
                     print(f"Automatically upgraded user {user_id} to {plan_name} via Webhook!")
-                
         return {"status": "success"}
     except razorpay.errors.SignatureVerificationError:
         raise HTTPException(status_code=400, detail="Invalid signature")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-class JobRequest(BaseModel):
-    tool: str
-    target_format: Optional[str] = None
-    target_size_mb: Optional[float] = None
-    input_file_ids: Optional[list[str]] = None
-    configuration: Optional[dict] = None
-
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi import Security
-
+# --- Auth ---
 security = HTTPBearer(auto_error=False)
 
 async def get_current_user_optional(creds: Optional[HTTPAuthorizationCredentials] = Security(security)):
@@ -208,6 +160,14 @@ async def get_current_user_optional(creds: Optional[HTTPAuthorizationCredentials
         pass
     return None
 
+# --- Job Processing ---
+class JobRequest(BaseModel):
+    tool: str
+    target_format: Optional[str] = None
+    target_size_mb: Optional[float] = None
+    input_file_ids: Optional[list[str]] = None
+    configuration: Optional[dict] = None
+
 @app.post("/api/jobs")
 async def create_job(
     request: JobRequest,
@@ -215,17 +175,9 @@ async def create_job(
     current_user: Optional[dict] = Depends(get_current_user_optional),
     background_tasks: BackgroundTasks = BackgroundTasks()
 ):
-    """
-    1. Authenticate user (guest or registered)
-    2. Check limits (file size, daily ops)
-    3. Create job in DB
-    4. Enqueue background task
-    """
     if not supabase:
         raise HTTPException(status_code=500, detail="Supabase not configured")
-        
-    # --- LIMIT CHECKING LOGIC ---
-    # 1. Fetch file metadata
+
     file_size = 0
     if file_id:
         file_res = supabase.table("files").select("size_bytes").eq("id", file_id).execute()
@@ -233,9 +185,7 @@ async def create_job(
             raise HTTPException(status_code=404, detail="File not found")
         file_size = file_res.data[0]["size_bytes"]
 
-    # 2. Determine limits based on User Plan
-    max_file_size = 350 * 1024 * 1024 # 350MB default for Free/Guest
-    
+    max_file_size = 350 * 1024 * 1024
     user_id = current_user.get("id") if current_user else None
     if user_id:
         user_res = supabase.table("users").select("plan_id").eq("id", user_id).execute()
@@ -243,116 +193,81 @@ async def create_job(
             user_data = user_res.data[0]
             if user_data.get("plan_id"):
                 plan_res = supabase.table("plans").select("max_file_size_bytes").eq("id", user_data["plan_id"]).execute()
-                
                 if plan_res.data:
                     plan = plan_res.data[0]
-                    # If max_file_size_bytes is very large or null, treat as unlimited (Premium)
                     if plan["max_file_size_bytes"] > 0:
                         max_file_size = plan["max_file_size_bytes"]
                     else:
                         max_file_size = float('inf')
 
-    # 3. Check File Size Limit
     if file_size > max_file_size:
         raise HTTPException(status_code=413, detail=f"File exceeds maximum allowed size for your tier. ({max_file_size / (1024*1024)}MB)")
-    
-    # Extract input files array
+
     input_ids = request.input_file_ids if request.input_file_ids else ([file_id] if file_id else [])
-    
-    # ---------------------------
-    
-    # Create Job in DB
+
     base_config = {
         "target_format": request.target_format,
         "target_size_mb": request.target_size_mb
     }
     if request.configuration:
         base_config.update(request.configuration)
-        
+
     job_data = {
         "tool": request.tool,
         "input_file_ids": input_ids,
         "configuration": base_config,
-        "status": "QUEUED"
+        "status": "QUEUED",
+        "user_id": user_id
     }
-    
-    user_id = current_user["id"] if current_user else None
-    
-    if user_id:
-        job_data["user_id"] = user_id
-    else:
-        job_data["user_id"] = None
-    
+
     try:
         response = supabase.table("processing_jobs").insert(job_data).execute()
         job = response.data[0]
-        
-        # Enqueue background processing
         background_tasks.add_task(process_document_job, job["id"])
-        
         return {"job_id": job["id"], "status": "QUEUED"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
 def process_document_job(job_id: str):
-    """
-    Background worker that:
-    1. Downloads file from Supabase Storage
-    2. Runs processing (compression, OCR, conversion)
-    3. Verifies output
-    4. Uploads result to Storage
-    5. Updates job status to COMPLETED
-    """
     try:
-        import asyncio
-        import os
-        import tempfile
+        import re
+        import shutil
+        import mimetypes
         from src.services.pdf_service import PDFService
-        
+
         print(f"Starting processing for job {job_id}")
-        
-        # Update status to PROCESSING with initial progress
+
         try:
             supabase.table("processing_jobs").update({"status": "PROCESSING", "progress": 10}).eq("id", job_id).execute()
         except Exception:
             supabase.table("processing_jobs").update({"status": "PROCESSING"}).eq("id", job_id).execute()
-        
-        # 1. Fetch Job and Input Files Metadata
+
         job_res = supabase.table("processing_jobs").select("*").eq("id", job_id).single().execute()
         job = job_res.data
-        
         input_ids = job["input_file_ids"]
-        
+
         with tempfile.TemporaryDirectory() as temp_dir:
             input_paths = []
-            
             for f_id in input_ids:
                 file_metadata_res = supabase.table("files").select("*").eq("id", f_id).single().execute()
                 file_metadata = file_metadata_res.data
                 storage_key = file_metadata["storage_key"]
-                
-                # 2. Download from Supabase Storage
                 storage_res = supabase.storage.from_("uploads").download(storage_key)
-                
-                import re
                 safe_filename = os.path.basename(file_metadata['filename'])
                 safe_filename = re.sub(r'[^a-zA-Z0-9._-]', '_', safe_filename)
-                
                 in_path = os.path.join(temp_dir, f"{f_id}_{safe_filename}")
                 with open(in_path, "wb") as f:
                     f.write(storage_res)
                 input_paths.append(in_path)
-            
-            # Update progress after download
+
             try:
                 supabase.table("processing_jobs").update({"progress": 30}).eq("id", job_id).execute()
             except Exception:
                 pass
-            
-            # 3. Process based on tool
+
             tool = job["tool"]
             success = False
-            
+
             if tool == "Compress PDF":
                 output_filename = f"processed_{job['id']}.pdf"
                 output_path = os.path.join(temp_dir, output_filename)
@@ -361,24 +276,16 @@ def process_document_job(job_id: str):
             elif tool == "Split PDF":
                 output_filename = f"processed_{job['id']}.zip"
                 output_path = os.path.join(temp_dir, output_filename)
-                
-                split_page = job.get("configuration", {})
-                if not split_page:
-                    split_page = {}
-                split_page_num = split_page.get("split_page", 1)
-                
+                split_config = job.get("configuration", {}) or {}
+                split_page_num = split_config.get("split_page", 1)
                 from PyPDF2 import PdfReader
                 reader = PdfReader(input_paths[0])
                 total_pages = len(reader.pages)
-                
                 ranges = [(1, split_page_num)]
                 if total_pages > split_page_num:
                     ranges.append((split_page_num + 1, total_pages))
-                    
                 out_files = PDFService.split_pdf(input_paths[0], temp_dir, ranges=ranges)
-                
                 if out_files:
-                    import zipfile
                     with zipfile.ZipFile(output_path, 'w') as zipf:
                         for idx, file in enumerate(out_files):
                             zipf.write(file, f"part_{idx+1}.pdf")
@@ -441,7 +348,6 @@ def process_document_job(job_id: str):
                 output_path = os.path.join(temp_dir, output_filename)
                 out_files = PDFService.pdf_to_jpg(input_paths[0], temp_dir)
                 if out_files:
-                    import shutil
                     shutil.copy(out_files[0], output_path)
                     success = True
             elif tool == "JPG to PDF":
@@ -449,7 +355,6 @@ def process_document_job(job_id: str):
                 output_path = os.path.join(temp_dir, output_filename)
                 from src.services.image_service import ImageService
                 success = ImageService.jpg_to_pdf(input_paths, output_path)
-
             elif tool == "Compress Video":
                 output_filename = f"compressed_{job['id']}.mp4"
                 output_path = os.path.join(temp_dir, output_filename)
@@ -464,9 +369,9 @@ def process_document_job(job_id: str):
             elif tool == "HTML to PDF":
                 output_filename = f"processed_{job['id']}.pdf"
                 output_path = os.path.join(temp_dir, output_filename)
-                url = job.get("configuration", {}).get("url")
-                if url:
-                    success = PDFService.html_to_pdf(url, output_path, is_url=True)
+                url_val = job.get("configuration", {}).get("url")
+                if url_val:
+                    success = PDFService.html_to_pdf(url_val, output_path, is_url=True)
                 elif input_paths:
                     success = PDFService.html_to_pdf(input_paths[0], output_path, is_url=False)
                 else:
@@ -526,39 +431,33 @@ def process_document_job(job_id: str):
             else:
                 output_filename = f"processed_{job['id']}.pdf"
                 output_path = os.path.join(temp_dir, output_filename)
-                import shutil
                 shutil.copy(input_paths[0], output_path)
                 success = True
-                
+
             if not success:
                 raise Exception(f"Processing failed for tool: {tool}")
-            
-            # Update progress after processing
+
             try:
                 supabase.table("processing_jobs").update({"progress": 70}).eq("id", job_id).execute()
             except Exception:
                 pass
-                
-            # 4. Upload Result to Supabase Storage
-            import mimetypes
+
             content_type, _ = mimetypes.guess_type(output_filename)
             if not content_type:
                 content_type = "application/octet-stream"
-                
+
             with open(output_path, "rb") as f:
-                upload_res = supabase.storage.from_("results").upload(
+                supabase.storage.from_("results").upload(
                     path=output_filename,
                     file=f,
-                    file_options={"content-type": content_type} 
+                    file_options={"content-type": content_type}
                 )
-            
-            # Update progress after upload
+
             try:
                 supabase.table("processing_jobs").update({"progress": 90}).eq("id", job_id).execute()
             except Exception:
                 pass
-                
-            # 5. Create Result File Record in DB
+
             result_file_res = supabase.table("files").insert({
                 "user_id": job.get("user_id"),
                 "filename": output_filename,
@@ -566,24 +465,23 @@ def process_document_job(job_id: str):
                 "size_bytes": os.path.getsize(output_path),
                 "storage_key": output_filename,
             }).execute()
-            
+
             result_file_id = result_file_res.data[0]["id"]
-            
-            # 5. Update job status to COMPLETED
+
             try:
                 supabase.table("processing_jobs").update({
-                    "status": "COMPLETED", 
+                    "status": "COMPLETED",
                     "progress": 100,
                     "result_file_id": result_file_id
                 }).eq("id", job_id).execute()
             except Exception:
                 supabase.table("processing_jobs").update({
-                    "status": "COMPLETED", 
+                    "status": "COMPLETED",
                     "result_file_id": result_file_id
                 }).eq("id", job_id).execute()
-            
+
             print(f"Completed processing for job {job_id}")
-            
+
     except Exception as e:
         print(f"Job {job_id} failed: {e}")
         try:
@@ -593,20 +491,21 @@ def process_document_job(job_id: str):
                 "progress": 0
             }).eq("id", job_id).execute()
         except Exception:
-            supabase.table("processing_jobs").update({
-                "status": "FAILED",
-                "error_message": str(e)
-            }).eq("id", job_id).execute()
+            try:
+                supabase.table("processing_jobs").update({
+                    "status": "FAILED",
+                    "error_message": str(e)
+                }).eq("id", job_id).execute()
+            except Exception:
+                pass
 
+# --- Admin ---
 class NotifyRequest(BaseModel):
     user_email: str
     plan_name: str
 
 @app.post("/api/admin/notify-upgrade")
 def notify_upgrade(req: NotifyRequest):
-    """
-    Sends an upgrade confirmation email to the user.
-    """
     from src.services.email_service import EmailService
     success = EmailService.send_upgrade_email(req.user_email, req.plan_name)
     if success:

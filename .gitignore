@@ -1,0 +1,34 @@
+# Dependencies
+/node_modules
+/venv/
+__pycache__/
+
+# Environment files - NEVER commit secrets
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+.next/
+out/
+/build
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+
+# Misc
+*.pem
+npm-debug.log*

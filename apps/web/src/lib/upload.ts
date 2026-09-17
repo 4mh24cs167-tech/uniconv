@@ -1,11 +1,12 @@
-import { supabase } from "./supabase";
+import { getBrowserSupabaseClient } from "./supabase-browser";
 
 export async function uploadFileToSupabaseResumable(
   file: File,
   bucket: string,
   onProgress: (progress: number) => void
 ): Promise<string> {
-  const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+  const supabase = getBrowserSupabaseClient();
+  const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
 
   onProgress(10);
 
@@ -17,7 +18,8 @@ export async function uploadFileToSupabaseResumable(
   onProgress(100);
 
   if (error) {
-    throw error;
+    console.error("Upload failed:", error);
+    throw new Error(`Upload failed: ${error.message}`);
   }
 
   return fileName;
