@@ -62,6 +62,22 @@ def cleanup_old_files():
 scheduler = BackgroundScheduler()
 scheduler.add_job(cleanup_old_files, 'interval', hours=12)
 scheduler.start()
+
+# Pre-download rembg model in background so first user doesn't wait
+import threading
+
+def _warm_up_rembg():
+    try:
+        import time
+        # Wait a bit for the server to fully start
+        time.sleep(5)
+        from rembg.session_factory import new_session
+        new_session('u2net')
+        print("rembg u2net model pre-downloaded successfully")
+    except Exception as e:
+        print(f"rembg warm-up failed (will retry on first use): {e}")
+
+threading.Thread(target=_warm_up_rembg, daemon=True).start()
 # -----------------------------------
 
 @app.get("/")
