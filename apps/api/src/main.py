@@ -233,6 +233,7 @@ def process_document_job(job_id: str):
         import re
         import shutil
         import mimetypes
+        import zipfile
         from src.services.pdf_service import PDFService
 
         print(f"Starting processing for job {job_id}")
@@ -244,20 +245,32 @@ def process_document_job(job_id: str):
 
         job_res = supabase.table("processing_jobs").select("*").eq("id", job_id).single().execute()
         job = job_res.data
-        input_ids = job["input_file_ids"]
+        input_ids = job.get("input_file_ids") or []
+
+        if not input_ids:
+            raise Exception("No input files provided for processing")
 
         with tempfile.TemporaryDirectory() as temp_dir:
             input_paths = []
             for f_id in input_ids:
                 file_metadata_res = supabase.table("files").select("*").eq("id", f_id).single().execute()
+                if not file_metadata_res.data:
+                    raise Exception(f"File not found: {f_id}")
                 file_metadata = file_metadata_res.data
                 storage_key = file_metadata["storage_key"]
                 storage_res = supabase.storage.from_("uploads").download(storage_key)
+                if not storage_res:
+                    raise Exception(f"Failed to download file: {file_metadata.get('filename', f_id)}")
                 safe_filename = os.path.basename(file_metadata['filename'])
                 safe_filename = re.sub(r'[^a-zA-Z0-9._-]', '_', safe_filename)
                 in_path = os.path.join(temp_dir, f"{f_id}_{safe_filename}")
                 with open(in_path, "wb") as f:
                     f.write(storage_res)
+
+                # Validate file exists and is readable
+                if not os.path.exists(in_path) or os.path.getsize(in_path) == 0:
+                    raise Exception(f"Downloaded file is empty or missing: {file_metadata.get('filename', f_id)}")
+
                 input_paths.append(in_path)
 
             try:

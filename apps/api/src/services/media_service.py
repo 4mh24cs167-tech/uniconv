@@ -22,6 +22,28 @@ class MediaService:
             return False
 
     @staticmethod
+    def extract_audio(input_path: str, output_path: str) -> bool:
+        """
+        Extracts audio from a video file using raw FFmpeg.
+        """
+        try:
+            command = [
+                "ffmpeg", "-nostdin", "-y", "-protocol_whitelist", "file", "-i", input_path,
+                "-q:a", "0", "-map", "a",
+                output_path
+            ]
+            subprocess.run(command, check=True, timeout=MediaService.DEFAULT_TIMEOUT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return True
+        except FileNotFoundError:
+            raise Exception("FFmpeg is not installed on the server")
+        except subprocess.TimeoutExpired:
+            raise Exception("Audio extraction timed out")
+        except subprocess.CalledProcessError as e:
+            raise Exception(f"Audio extraction failed: {e}")
+        except ImportError:
+            raise Exception("Required libraries not installed on the server")
+
+    @staticmethod
     def remove_watermark(input_path: str, output_path: str, position: str = "bottom_right") -> bool:
         """
         Removes watermark. Uses OpenCV inpainting for images, and FFmpeg delogo for videos.
@@ -39,12 +61,12 @@ class MediaService:
                 probe_data = _json.loads(probe_result.stdout)
                 vw = int(probe_data["streams"][0]["width"])
                 vh = int(probe_data["streams"][0]["height"])
-                
+
                 # Make the box a wide rectangle rather than a massive square
                 # Most watermarks (like Gemini, TikTok) are long and short.
                 logo_w = max(int(vw * 0.40), 1)
                 logo_h = max(int(vh * 0.07), 1)
-                
+
                 if position == "gemini":
                     # Slightly larger box to catch the glow, flush with bottom right corner
                     logo_w = max(int(vw * 0.18), 1)
@@ -61,7 +83,7 @@ class MediaService:
                     lx, ly = vw // 2 - logo_w // 2, vh // 2 - logo_h // 2
                 else: # bottom_right
                     lx, ly = vw - logo_w, vh - logo_h
-                
+
                 # FFMPEG delogo sometimes crashes if boundaries exactly match width/height
                 # Pad inwards by 2 pixels to guarantee we stay inside the bounding box
                 lx = max(2, lx)
@@ -70,7 +92,7 @@ class MediaService:
                     logo_w = vw - lx - 2
                 if ly + logo_h >= vh:
                     logo_h = vh - ly - 2
-                    
+
                 vf = f"delogo=x={lx}:y={ly}:w={logo_w}:h={logo_h}"
                 command = [
                     "ffmpeg", "-nostdin", "-y", "-protocol_whitelist", "file", "-i", input_path,
@@ -82,23 +104,22 @@ class MediaService:
                 # Capture output to help debug if it fails again
                 res = subprocess.run(command, capture_output=True, text=True, timeout=MediaService.DEFAULT_TIMEOUT)
                 if res.returncode != 0:
-                    print(f"FFMPEG ERROR: {res.stderr}")
-                    return False
+                    raise Exception(f"FFmpeg error: {res.stderr}")
                 return True
             else:
                 import cv2
                 import numpy as np
-                
+
                 img = cv2.imread(input_path)
                 if img is None:
                     raise Exception("Could not read image for watermark removal")
-                    
+
                 h, w = img.shape[:2]
                 mask = np.zeros((h, w), dtype=np.uint8)
-                
+
                 mask_h = int(h * 0.20)
                 mask_w = int(w * 0.35)
-                
+
                 if position == "gemini":
                     mask_h = int(h * 0.08)
                     mask_w = int(w * 0.15)
@@ -117,13 +138,16 @@ class MediaService:
                     mask[y1:y1+mask_h, x1:x1+mask_w] = 255
                 else: # bottom_right
                     mask[h - mask_h:, w - mask_w:] = 255
-                
+
                 result = cv2.inpaint(img, mask, 3, cv2.INPAINT_TELEA)
                 cv2.imwrite(output_path, result)
                 return True
+        except ImportError:
+            raise Exception("OpenCV or FFmpeg is not installed on the server")
+        except FileNotFoundError:
+            raise Exception("FFmpeg is not installed on the server")
         except Exception as e:
-            print(f"Error removing watermark: {e}")
-            return False
+            raise Exception(f"Watermark removal failed: {e}")
 
     @staticmethod
     def convert_audio(input_path: str, output_path: str) -> bool:
@@ -145,17 +169,22 @@ class MediaService:
                 codec_args = ["-c:a", "flac"]
             elif ext == ".wma":
                 codec_args = ["-c:a", "wmav2"]
-                
+
             command = [
                 "ffmpeg", "-nostdin", "-y", "-protocol_whitelist", "file", "-i", input_path,
                 "-vn"
             ] + codec_args + [output_path]
-            
+
             subprocess.run(command, check=True, timeout=MediaService.DEFAULT_TIMEOUT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             return True
+        except FileNotFoundError:
+            raise Exception("FFmpeg is not installed on the server")
+        except subprocess.TimeoutExpired:
+            raise Exception("Audio conversion timed out")
+        except subprocess.CalledProcessError as e:
+            raise Exception(f"Audio conversion failed: {e}")
         except Exception as e:
-            print(f"Error converting audio: {e}")
-            return False
+            raise Exception(f"Audio conversion failed: {e}")
 
     @staticmethod
     def office_to_pdf(input_path: str, output_path: str) -> bool:
@@ -171,7 +200,7 @@ class MediaService:
                 "libreoffice", "--headless", "--convert-to", "pdf",
                 input_path, "--outdir", out_dir
             ]
-            
+
             # On some systems, the command is 'soffice'
             try:
                 subprocess.run(command, check=True, timeout=MediaService.DEFAULT_TIMEOUT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -179,20 +208,20 @@ class MediaService:
                 command[0] = "soffice"
                 subprocess.run(command, check=True, timeout=MediaService.DEFAULT_TIMEOUT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             except subprocess.TimeoutExpired:
-                print("LibreOffice conversion timed out")
-                return False
-                
+                raise Exception("LibreOffice conversion timed out")
+
             # Libreoffice names the output file the same as input but with .pdf
             base_name = os.path.splitext(os.path.basename(input_path))[0]
             expected_out = os.path.join(out_dir, f"{base_name}.pdf")
-            
+
             if os.path.exists(expected_out):
                 os.rename(expected_out, output_path)
                 return True
             return False
+        except FileNotFoundError:
+            raise Exception("LibreOffice is not installed on the server")
         except Exception as e:
-            print(f"Error converting office to PDF: {e}")
-            return False
+            raise Exception(f"Office to PDF conversion failed: {e}")
 
     @staticmethod
     def compress_video(input_path: str, output_path: str, target_size_mb: float = None) -> bool:
@@ -211,14 +240,14 @@ class MediaService:
                 probe_result = subprocess.run(probe_cmd, capture_output=True, text=True, timeout=MediaService.DEFAULT_TIMEOUT)
                 probe_data = _json.loads(probe_result.stdout)
                 duration = float(probe_data["format"]["duration"])
-                
+
                 # Target size in kb (kilobits)
                 target_kb = target_size_mb * 8192
                 target_total_bitrate = target_kb / duration
-                
+
                 audio_bitrate = 128
                 video_bitrate = max(100, int(target_total_bitrate - audio_bitrate))
-                
+
                 command = [
                     "ffmpeg", "-nostdin", "-y", "-protocol_whitelist", "file", "-i", input_path,
                     "-b:v", f"{video_bitrate}k", "-maxrate", f"{int(video_bitrate * 1.5)}k",
@@ -235,9 +264,8 @@ class MediaService:
                 ]
             res = subprocess.run(command, capture_output=True, text=True, timeout=MediaService.DEFAULT_TIMEOUT)
             if res.returncode != 0:
-                print(f"FFMPEG ERROR: {res.stderr}")
-                return False
-                
+                raise Exception(f"FFmpeg error: {res.stderr}")
+
             # Force exact size by padding zeroes at the end (safe for MP4 containers)
             if target_size_mb:
                 target_size_bytes = int(target_size_mb * 1024 * 1024)
@@ -245,11 +273,14 @@ class MediaService:
                 if current_size < target_size_bytes:
                     with open(output_path, 'ab') as f:
                         f.write(b'\0' * (target_size_bytes - current_size))
-                        
+
             return True
+        except FileNotFoundError:
+            raise Exception("FFmpeg is not installed on the server")
+        except subprocess.TimeoutExpired:
+            raise Exception("Video compression timed out")
         except Exception as e:
-            print(f"Error compressing video: {e}")
-            return False
+            raise Exception(f"Video compression failed: {e}")
 
     @staticmethod
     def video_to_gif(input_path: str, output_path: str) -> bool:
@@ -266,7 +297,7 @@ class MediaService:
                 palette_path
             ]
             subprocess.run(command1, check=True, timeout=MediaService.DEFAULT_TIMEOUT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            
+
             # Second pass: use palette to generate GIF
             command2 = [
                 "ffmpeg", "-nostdin", "-y", "-protocol_whitelist", "file", "-i", input_path, "-i", palette_path,
@@ -274,15 +305,20 @@ class MediaService:
                 output_path
             ]
             subprocess.run(command2, check=True, timeout=MediaService.DEFAULT_TIMEOUT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            
+
             import os
             if os.path.exists(palette_path):
                 os.remove(palette_path)
-                
+
             return True
+        except FileNotFoundError:
+            raise Exception("FFmpeg is not installed on the server")
+        except subprocess.TimeoutExpired:
+            raise Exception("Video to GIF conversion timed out")
+        except subprocess.CalledProcessError as e:
+            raise Exception(f"Video to GIF conversion failed: {e}")
         except Exception as e:
-            print(f"Error converting video to GIF: {e}")
-            return False
+            raise Exception(f"Video to GIF conversion failed: {e}")
 
     @staticmethod
     def text_to_speech(text: str, output_path: str, lang: str = "en") -> bool:
@@ -294,6 +330,7 @@ class MediaService:
             tts = gTTS(text=text, lang=lang, slow=False)
             tts.save(output_path)
             return True
+        except ImportError:
+            raise Exception("gTTS is not installed on the server")
         except Exception as e:
-            print(f"Error converting text to speech: {e}")
-            return False
+            raise Exception(f"Text to speech conversion failed: {e}")

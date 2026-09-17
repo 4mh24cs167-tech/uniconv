@@ -27,9 +27,11 @@ COPY . .
 RUN useradd -r appuser && chown -R appuser /app
 USER appuser
 
+# Pre-download the rembg U2Net ONNX model as appuser so it's cached at runtime
+RUN python -c "from rembg.session_factory import new_session; new_session('u2net')"
+
 # Expose the port FastAPI runs on
 EXPOSE 8000
 
 # Command to run the FastAPI application using Uvicorn
-# Make sure we point to src.main:app since the code is inside the src folder
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

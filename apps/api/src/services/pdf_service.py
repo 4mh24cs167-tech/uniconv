@@ -12,10 +12,16 @@ class PDFService:
         """
         try:
             reader = PdfReader(input_path)
+            if not reader.pages:
+                raise Exception("PDF has no pages")
+
             writer = PdfWriter()
 
             for page in reader.pages:
-                page.compress_content_streams()  # This is CPU intensive but compresses text/streams
+                try:
+                    page.compress_content_streams()  # Can fail on certain PDF versions
+                except Exception:
+                    pass  # Skip compression if unsupported, still write the page
                 writer.add_page(page)
 
             # Write out the compressed file
@@ -23,9 +29,10 @@ class PDFService:
                 writer.write(f)
 
             return True
+        except ImportError:
+            raise Exception("PyPDF2 is not installed on the server")
         except Exception as e:
-            print(f"Error compressing PDF: {e}")
-            return False
+            raise Exception(f"PDF compression failed: {e}")
 
     @staticmethod
     def merge_pdfs(input_paths: List[str], output_path: str) -> bool:
@@ -36,13 +43,14 @@ class PDFService:
             merger = PdfMerger()
             for path in input_paths:
                 merger.append(path)
-            
+
             merger.write(output_path)
             merger.close()
             return True
+        except ImportError:
+            raise Exception("PyPDF2 is not installed on the server")
         except Exception as e:
-            print(f"Error merging PDFs: {e}")
-            return False
+            raise Exception(f"PDF merge failed: {e}")
 
     @staticmethod
     def split_pdf(input_path: str, output_dir: str, ranges: Optional[List[tuple]] = None) -> List[str]:
@@ -54,14 +62,14 @@ class PDFService:
         try:
             reader = PdfReader(input_path)
             total_pages = len(reader.pages)
-            
+
             if ranges:
                 for idx, (start, end) in enumerate(ranges):
                     writer = PdfWriter()
                     # PyPDF2 is 0-indexed, inputs are usually 1-indexed
                     for i in range(start - 1, min(end, total_pages)):
                         writer.add_page(reader.pages[i])
-                        
+
                     out_path = os.path.join(output_dir, f"split_part_{idx+1}.pdf")
                     with open(out_path, "wb") as f:
                         writer.write(f)
@@ -70,16 +78,17 @@ class PDFService:
                 for i in range(total_pages):
                     writer = PdfWriter()
                     writer.add_page(reader.pages[i])
-                    
+
                     out_path = os.path.join(output_dir, f"page_{i+1}.pdf")
                     with open(out_path, "wb") as f:
                         writer.write(f)
                     output_files.append(out_path)
-                    
+
             return output_files
+        except ImportError:
+            raise Exception("PyPDF2 is not installed on the server")
         except Exception as e:
-            print(f"Error splitting PDF: {e}")
-            return []
+            raise Exception(f"PDF split failed: {e}")
 
     @staticmethod
     def pdf_to_word(input_path: str, output_path: str) -> bool:
@@ -93,13 +102,9 @@ class PDFService:
             cv.close()
             return True
         except ImportError:
-            print("pdf2docx is not installed.")
-            import shutil
-            shutil.copy(input_path, output_path)
-            return True
+            raise Exception("pdf2docx is not installed on the server")
         except Exception as e:
-            print(f"Error converting PDF to Word: {e}")
-            return False
+            raise Exception(f"PDF to Word conversion failed: {e}")
 
     @staticmethod
     def pdf_to_excel(input_path: str, output_path: str) -> bool:
@@ -111,43 +116,42 @@ class PDFService:
             import pandas as pd
             import gc
             import re
-            
+
             table_count = 0
             sheets_data = []
-            
+
             with pdfplumber.open(input_path) as pdf:
                 for page in pdf.pages:
                     tables = page.extract_tables()
                     for table in tables:
-                        if not table or not table[0]: continue
+                        if not table or not table[0]:
+                            continue
                         df = pd.DataFrame(table[1:], columns=table[0])
                         sheet_name = re.sub(r'[\\/*?:\[\]]', '', f"Table_{table_count+1}")[:31]
                         sheets_data.append((sheet_name, df))
                         table_count += 1
                         del df
                         del table
-                    
+
                     page.flush_cache()
                     del tables
                     gc.collect()
-            
+
             if table_count == 0:
                 # Create a default sheet with message
                 df = pd.DataFrame([["No tables detected in PDF"]])
                 sheets_data.append(("No Tables", df))
-            
+
             # Write all sheets at once
             with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
                 for sheet_name, df in sheets_data:
                     df.to_excel(writer, sheet_name=sheet_name, index=False)
-            
+
             return True
         except ImportError:
-            print("pdfplumber/pandas/openpyxl not installed.")
-            return False
+            raise Exception("pdfplumber/pandas/openpyxl not installed on the server")
         except Exception as e:
-            print(f"Error converting PDF to Excel: {e}")
-            return False
+            raise Exception(f"PDF to Excel conversion failed: {e}")
 
     @staticmethod
     def pdf_to_pptx(input_path: str, output_path: str) -> bool:
@@ -159,38 +163,36 @@ class PDFService:
             from pptx import Presentation
             from pptx.util import Inches
             import os
-            
+
             prs = Presentation()
             # Set slide width/height to standard 16:9
             prs.slide_width = Inches(10)
             prs.slide_height = Inches(5.625)
-            
+
             doc = fitz.open(input_path)
             for page_num in range(len(doc)):
                 page = doc.load_page(page_num)
                 pix = page.get_pixmap(matrix=fitz.Matrix(2, 2)) # Higher res
                 img_path = f"{input_path}_page_{page_num}.png"
                 pix.save(img_path)
-                
+
                 # Add slide
-                blank_slide_layout = prs.slide_layouts[6] 
+                blank_slide_layout = prs.slide_layouts[6]
                 slide = prs.slides.add_slide(blank_slide_layout)
-                
+
                 # Add image to fill slide
                 slide.shapes.add_picture(img_path, 0, 0, width=prs.slide_width, height=prs.slide_height)
-                
+
                 # Cleanup temp image
                 os.remove(img_path)
-                
+
             prs.save(output_path)
             doc.close()
             return True
         except ImportError:
-            print("PyMuPDF or python-pptx not installed.")
-            return False
+            raise Exception("PyMuPDF or python-pptx not installed on the server")
         except Exception as e:
-            print(f"Error converting PDF to PPTX: {e}")
-            return False
+            raise Exception(f"PDF to PowerPoint conversion failed: {e}")
 
     @staticmethod
     def pdf_to_jpg(input_path: str, output_dir: str) -> list[str]:
@@ -202,10 +204,10 @@ class PDFService:
             import fitz
             import zipfile
             import os
-            
+
             doc = fitz.open(input_path)
             image_paths = []
-            
+
             for page_num in range(len(doc)):
                 page = doc.load_page(page_num)
                 pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
@@ -213,21 +215,19 @@ class PDFService:
                 pix.save(img_path)
                 image_paths.append(img_path)
             doc.close()
-            
+
             # Zip them up
             zip_path = os.path.join(output_dir, "images.zip")
             with zipfile.ZipFile(zip_path, 'w') as zipf:
                 for img in image_paths:
                     zipf.write(img, os.path.basename(img))
                     os.remove(img) # cleanup individual images
-                    
+
             return [zip_path]
         except ImportError:
-            print("PyMuPDF not installed.")
-            return []
+            raise Exception("PyMuPDF is not installed on the server")
         except Exception as e:
-            print(f"Error converting PDF to JPG: {e}")
-            return []
+            raise Exception(f"PDF to JPG conversion failed: {e}")
 
     @staticmethod
     def extract_text_ocr(input_path: str, output_path: str) -> bool:
@@ -239,17 +239,17 @@ class PDFService:
             from PIL import Image
             import fitz  # PyMuPDF
             import os
-            
+
             ext = os.path.splitext(input_path)[1].lower()
             text_result = ""
-            
+
             if ext == ".pdf":
                 # Convert PDF pages to images first
                 doc = fitz.open(input_path)
                 for page_num in range(len(doc)):
                     page = doc.load_page(page_num)
                     # High res for better OCR
-                    pix = page.get_pixmap(matrix=fitz.Matrix(3, 3)) 
+                    pix = page.get_pixmap(matrix=fitz.Matrix(3, 3))
                     # Convert to PIL Image
                     img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
                     text_result += pytesseract.image_to_string(img) + "\n\n--- Page Break ---\n\n"
@@ -258,18 +258,16 @@ class PDFService:
                 # Assume it's an image
                 with Image.open(input_path) as img:
                     text_result = pytesseract.image_to_string(img)
-                
+
             # Write text to output .txt file
             with open(output_path, "w", encoding="utf-8") as f:
                 f.write(text_result)
-                
+
             return True
         except ImportError:
-            print("pytesseract/Pillow not installed.")
-            return False
+            raise Exception("pytesseract/Pillow not installed on the server")
         except Exception as e:
-            print(f"Error extracting text: {e}")
-            return False
+            raise Exception(f"Text extraction (OCR) failed: {e}")
 
     @staticmethod
     def unlock_pdf(input_path: str, output_path: str, password: str = "") -> bool:
@@ -284,9 +282,10 @@ class PDFService:
             with open(output_path, "wb") as f:
                 writer.write(f)
             return True
+        except ImportError:
+            raise Exception("PyPDF2 is not installed on the server")
         except Exception as e:
-            print(f"Error unlocking PDF: {e}")
-            return False
+            raise Exception(f"PDF unlock failed: {e}")
 
     @staticmethod
     def secure_password(input_path: str, output_path: str, password: str) -> bool:
@@ -300,9 +299,10 @@ class PDFService:
             with open(output_path, "wb") as f:
                 writer.write(f)
             return True
+        except ImportError:
+            raise Exception("PyPDF2 is not installed on the server")
         except Exception as e:
-            print(f"Error applying password to PDF: {e}")
-            return False
+            raise Exception(f"PDF password protection failed: {e}")
 
     @staticmethod
     def secure_permissions(input_path: str, output_path: str, permissions: dict) -> bool:
@@ -329,16 +329,17 @@ class PDFService:
                 perms &= ~fitz.PDF_PERM_ANNOTATE
             if permissions.get("fill_forms", False):
                 perms &= ~fitz.PDF_PERM_FORM
-            
+
             # Requires encryption to set permissions
             import secrets
             owner_pw = secrets.token_urlsafe(30)  # 30 bytes = 40 chars max for PyMuPDF
             doc.save(output_path, encryption=fitz.PDF_ENCRYPT_AES_256, permissions=perms, owner_pw=owner_pw)
             doc.close()
             return True
+        except ImportError:
+            raise Exception("PyMuPDF is not installed on the server")
         except Exception as e:
-            print(f"Error applying permissions to PDF: {e}")
-            return False
+            raise Exception(f"PDF permissions failed: {e}")
 
     @staticmethod
     def secure_watermark(input_path: str, output_path: str, config: dict) -> bool:
@@ -348,23 +349,24 @@ class PDFService:
             text = config.get("text", "CONFIDENTIAL")
             if not text:
                 text = "CONFIDENTIAL"
-            
+
             for page in doc:
                 rect = page.rect
                 point = fitz.Point(rect.width / 4, rect.height / 2)
                 try:
-                    # rotate must be multiples of 90 in PyMuPDF insert_text. 
+                    # rotate must be multiples of 90 in PyMuPDF insert_text.
                     # We will just use 0 (horizontal) to avoid ValueError.
                     page.insert_text(point, text, fontsize=50, color=(0.5, 0.5, 0.5), rotate=0, fill_opacity=0.3)
                 except TypeError:
                     page.insert_text(point, text, fontsize=50, color=(0.5, 0.5, 0.5), rotate=0)
-                    
+
             doc.save(output_path)
             doc.close()
             return True
+        except ImportError:
+            raise Exception("PyMuPDF is not installed on the server")
         except Exception as e:
-            print(f"Error watermarking PDF: {e}")
-            return False
+            raise Exception(f"PDF watermark failed: {e}")
 
     @staticmethod
     def secure_redact(input_path: str, output_path: str, text_to_redact: str) -> bool:
@@ -374,7 +376,7 @@ class PDFService:
                 import shutil
                 shutil.copyfile(input_path, output_path)
                 return True
-                
+
             import fitz
             doc = fitz.open(input_path)
             for page in doc:
@@ -385,9 +387,10 @@ class PDFService:
             doc.save(output_path)
             doc.close()
             return True
+        except ImportError:
+            raise Exception("PyMuPDF is not installed on the server")
         except Exception as e:
-            print(f"Error redacting PDF: {e}")
-            return False
+            raise Exception(f"PDF redaction failed: {e}")
 
     @staticmethod
     def remove_metadata(input_path: str, output_path: str) -> bool:
@@ -407,9 +410,10 @@ class PDFService:
             doc.save(output_path)
             doc.close()
             return True
+        except ImportError:
+            raise Exception("PyMuPDF is not installed on the server")
         except Exception as e:
-            print(f"Error removing metadata: {e}")
-            return False
+            raise Exception(f"Metadata removal failed: {e}")
 
     @staticmethod
     def html_to_pdf(input_data: str, output_path: str, is_url: bool = False) -> bool:
@@ -433,8 +437,6 @@ class PDFService:
                 pdfkit.from_file(input_data, output_path, options=options)
             return True
         except ImportError:
-            print("pdfkit is not installed.")
-            return False
+            raise Exception("pdfkit is not installed on the server")
         except Exception as e:
-            print(f"Error converting HTML to PDF: {e}")
-            return False
+            raise Exception(f"HTML to PDF conversion failed: {e}")
