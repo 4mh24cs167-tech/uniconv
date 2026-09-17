@@ -1,8 +1,9 @@
 # Use the stable Debian bookworm Python image
 FROM python:3.11-slim-bookworm
 
-# Disable numba caching — fixes rembg/pymatting import in Docker containers
+# Disable numba JIT caching — fixes rembg/pymatting in Docker overlay filesystem
 ENV NUMBA_DISABLE_CACHING=1
+ENV PYTHONPATH=/app
 
 # Set the working directory inside the container
 WORKDIR /app
