@@ -3,7 +3,7 @@ import asyncio
 import tempfile
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Depends, Request, Header
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Depends, Request, Header, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from supabase import create_client, Client
