@@ -61,20 +61,20 @@ export default function Dashboard() {
         }
       }
 
-      setSessionToken(effectiveSession.access_token);
-      setUserEmail(effectiveSession.user.email || null);
+      setSessionToken(effectiveSession!.access_token);
+      setUserEmail(effectiveSession!.user.email || null);
 
       const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "4mh24cs167@gmail.com";
-      if (session.user.email === adminEmail) {
+      if (effectiveSession!.user.email === adminEmail) {
         setPlan("premium");
       } else {
         // Fetch user's plan
         const { data: userData } = await supabase
           .from("users")
           .select("plan:plans(name)")
-          .eq("id", session.user.id)
+          .eq("id", effectiveSession!.user.id)
           .single();
-          
+
         const pData = userData?.plan as { name: string } | { name: string }[] | null;
         if (pData) {
           const planName = Array.isArray(pData) ? pData[0]?.name : pData.name;
@@ -89,7 +89,7 @@ export default function Dashboard() {
           *,
           result_file:files!processing_jobs_result_file_id_fkey(*)
         `)
-        .eq("user_id", session.user.id)
+        .eq("user_id", effectiveSession!.user.id)
         .order("created_at", { ascending: false })
         .limit(20);
 
