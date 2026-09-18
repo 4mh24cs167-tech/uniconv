@@ -3,7 +3,6 @@ import asyncio
 import tempfile
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from urllib.parse import quote as urlquote
 from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Depends, Request, Header, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -249,57 +248,6 @@ def auth_me(current_user: Optional[dict] = Depends(get_current_user_optional)):
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return {"status": "success", "user": current_user}
-
-@app.get("/api/auth/google")
-def auth_google():
-    """Redirect to Supabase Google OAuth."""
-    supabase_url = os.getenv("SUPABASE_URL", "")
-    anon_key = os.getenv("SUPABASE_ANON_KEY", "")
-    frontend_url = os.getenv("FRONTEND_URL", "https://uniconv-psi.vercel.app").split(",")[0].strip()
-
-    # Build Supabase OAuth URL
-    auth_url = (
-        f"{supabase_url}/auth/v1/authorize"
-        f"?provider=google"
-        f"&redirect_to={frontend_url}/auth/callback"
-    )
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url=auth_url)
-
-@app.get("/auth/callback")
-async def auth_callback(request: Request):
-    """Handle OAuth callback — redirect to dashboard with token."""
-    code = request.query_params.get("code")
-    error = request.query_params.get("error")
-
-    if error:
-        return RedirectResponse(url="/login?error=Google+sign-in+was+cancelled+or+failed")
-
-    if not code:
-        return RedirectResponse(url="/login?error=No+authorization+code+received")
-
-    try:
-        # Exchange code for session
-        session_res = supabase.auth.exchange_code_for_session(code)
-        access_token = session_res.session.access_token
-        refresh_token = session_res.session.refresh_token
-        user = session_res.user
-
-        # Create profile if doesn't exist
-        existing = supabase.table("profiles").select("id").eq("id", user.id).execute()
-        if not existing.data:
-            supabase.table("profiles").insert({
-                "id": user.id,
-                "email": user.email,
-                "full_name": (user.user_metadata || {}).get("full_name", "") or (user.user_metadata || {}).get("name", ""),
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            }).execute()
-
-        # Redirect to dashboard, passing token via hash fragment (client-side will read it)
-        return RedirectResponse(url=f"/dashboard#access_token={access_token}&refresh_token={refresh_token}")
-    except Exception as e:
-        return RedirectResponse(url=f"/login?error={urlquote(str(e))}")
-
 
 @app.post("/api/auth/logout")
 def auth_logout():
