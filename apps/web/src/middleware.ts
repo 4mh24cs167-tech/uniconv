@@ -58,13 +58,23 @@ export async function middleware(request: NextRequest) {
   const isAuth = !!user && !error;
 
   // If trying to access a protected route without being authenticated
-  if ((request.nextUrl.pathname.startsWith('/dashboard') || request.nextUrl.pathname.startsWith('/admin')) && !isAuth) {
-    return NextResponse.redirect(new URL('/login', request.url));
+  if (!isAuth) {
+    if (request.nextUrl.pathname.startsWith('/admin')) {
+      return NextResponse.redirect(new URL('/admin-login', request.url));
+    }
+    if (request.nextUrl.pathname.startsWith('/dashboard')) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
   }
 
   // If already authenticated and trying to hit login/register
   if ((request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register') && isAuth) {
     return NextResponse.redirect(new URL('/', request.url));
+  }
+
+  // If already authenticated as admin and hitting admin-login, go to admin
+  if (request.nextUrl.pathname === '/admin-login' && isAuth) {
+    return NextResponse.redirect(new URL('/admin', request.url));
   }
 
   return response;

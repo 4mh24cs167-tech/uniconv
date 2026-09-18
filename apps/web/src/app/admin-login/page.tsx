@@ -13,6 +13,15 @@ export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Clear stale tokens that cause 400 refresh errors
+  useEffect(() => {
+    const refreshToken = localStorage.getItem("uniconv_refresh_token");
+    if (!refreshToken || refreshToken.length < 20) {
+      localStorage.removeItem("uniconv_access_token");
+      localStorage.removeItem("uniconv_refresh_token");
+    }
+  }, []);
+
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
