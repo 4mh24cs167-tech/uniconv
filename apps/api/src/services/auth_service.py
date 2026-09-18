@@ -257,6 +257,16 @@ def login_with_email(email: str, password: str) -> dict:
         if not user:
             raise ValueError("Invalid email or password")
 
+        # Ensure user exists in users table (handles users who signed up via Supabase directly)
+        existing = supabase.table("users").select("id").eq("id", user.id).single().execute()
+        if not existing.data:
+            supabase.table("users").insert({
+                "id": user.id,
+                "email": user.email,
+                "name": (user.user_metadata or {}).get("full_name", "") or (user.user_metadata or {}).get("name", ""),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }).execute()
+
         # Get profile info
         profile = supabase.table("users").select("name").eq("id", user.id).single().execute()
         full_name = profile.data.get("name", "") if profile.data else ""
