@@ -254,6 +254,46 @@ def auth_logout():
     """Logout (client-side clears tokens)."""
     return {"status": "success", "message": "Logged out"}
 
+# --- Admin Analytics ---
+from src.services.analytics_service import get_all_analytics, get_tool_usage_stats, get_failed_jobs
+
+async def get_admin_user(current_user: Optional[dict] = Depends(get_current_user_optional)):
+    """Verify the user is an admin."""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_res = supabase.table("users").select("is_admin").eq("id", current_user["id"]).single().execute()
+    user_data = user_res.data or {}
+    if not user_data.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
+
+@app.get("/api/admin/analytics")
+def admin_analytics(admin: Optional[dict] = Depends(get_admin_user)):
+    """Get all analytics data for admin dashboard."""
+    try:
+        data = get_all_analytics()
+        return {"status": "success", **data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/admin/tools")
+def admin_tools(admin: Optional[dict] = Depends(get_admin_user)):
+    """Get tool usage statistics."""
+    try:
+        data = get_tool_usage_stats()
+        return {"status": "success", **data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/admin/failed-jobs")
+def admin_failed_jobs(admin: Optional[dict] = Depends(get_admin_user)):
+    """Get failed jobs with error details."""
+    try:
+        jobs = get_failed_jobs()
+        return {"status": "success", "jobs": jobs}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # --- Job Processing ---
 class JobRequest(BaseModel):
     tool: str

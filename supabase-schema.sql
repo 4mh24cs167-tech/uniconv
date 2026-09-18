@@ -30,6 +30,7 @@ CREATE TABLE users (
     name TEXT,
     plan_id UUID REFERENCES plans(id) ON DELETE SET NULL,
     storage_used_bytes BIGINT DEFAULT 0,
+    is_admin BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );

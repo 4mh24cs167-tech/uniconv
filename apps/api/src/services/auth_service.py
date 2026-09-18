@@ -81,7 +81,7 @@ def signup_with_email(email: str, password: str, name: str = "") -> dict:
         raise ValueError("Name must be at most 100 characters")
 
     # Check if user already exists
-    existing = supabase.table("profiles").select("id").eq("email", email).execute()
+    existing = supabase.table("users").select("id").eq("email", email).execute()
     if existing.data:
         raise ValueError("An account with this email already exists")
 
@@ -157,10 +157,10 @@ def verify_otp(email: str, otp: str) -> dict:
             raise Exception("Failed to create user account")
 
         # Create profile entry
-        supabase.table("profiles").insert({
+        supabase.table("users").insert({
             "id": user.id,
             "email": email,
-            "full_name": data.get("name", ""),
+            "name": data.get("name", ""),
             "created_at": datetime.now(timezone.utc).isoformat(),
         }).execute()
 
@@ -258,8 +258,8 @@ def login_with_email(email: str, password: str) -> dict:
             raise ValueError("Invalid email or password")
 
         # Get profile info
-        profile = supabase.table("profiles").select("full_name").eq("id", user.id).single().execute()
-        full_name = profile.data.get("full_name", "") if profile.data else ""
+        profile = supabase.table("users").select("name").eq("id", user.id).single().execute()
+        full_name = profile.data.get("name", "") if profile.data else ""
 
         return {
             "user": {
