@@ -27,6 +27,8 @@ const AuthContext = createContext<AuthContextType>({
   checkAuth: async () => {},
 });
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://uniconv.onrender.com";
+
 export function useAuth() {
   return useContext(AuthContext);
 }
@@ -36,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  const getApiUrl = () => process.env.NEXT_PUBLIC_API_URL || "";
+  const getApiUrl = () => API_URL;
 
   const checkAuth = async () => {
     try {
@@ -130,7 +132,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/auth/signup`, {
+      const res = await fetch(`${API_URL}/api/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, name }),
@@ -152,7 +154,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/auth/verify-otp`, {
+      const res = await fetch(`${API_URL}/api/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp }),
@@ -185,7 +187,7 @@ export default function RegisterPage() {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/auth/resend-otp`, {
+      const res = await fetch(`${API_URL}/api/auth/resend-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
