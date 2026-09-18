@@ -150,12 +150,19 @@ export default function RegisterPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || data.msg || "Verification failed");
 
-      // Save tokens
-      localStorage.setItem("uniconv_access_token", data.session.access_token);
-      localStorage.setItem("uniconv_refresh_token", data.session.refresh_token);
-      setStep("success");
+      // Auto-login after successful verification
+      const loginRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const loginData = await loginRes.json();
+      if (loginRes.ok && loginData.session) {
+        localStorage.setItem("uniconv_access_token", loginData.session.access_token);
+        localStorage.setItem("uniconv_refresh_token", loginData.session.refresh_token);
+      }
 
-      // Redirect to dashboard after 2 seconds
+      setStep("success");
       setTimeout(() => router.push("/dashboard"), 2000);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");

@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { createBrowserClient } from '@supabase/ssr';
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -11,6 +12,10 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
   useEffect(() => {
     const errorParam = searchParams.get("error");
@@ -32,8 +37,14 @@ function LoginForm() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || data.msg || "Login failed");
 
-      localStorage.setItem("uniconv_access_token", data.session.access_token);
-      localStorage.setItem("uniconv_refresh_token", data.session.refresh_token);
+      // Set the Supabase session so middleware/getSession can detect auth
+      if (data.session) {
+        await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+      }
+
       router.push("/dashboard");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");

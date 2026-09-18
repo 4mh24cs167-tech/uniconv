@@ -36,12 +36,33 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchJobsAndPlan = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push("/login");
-        return;
+
+      // Fallback: if no cookie session, try localStorage tokens
+      let effectiveSession = session;
+      if (!effectiveSession) {
+        const accessToken = localStorage.getItem("uniconv_access_token");
+        const refreshToken = localStorage.getItem("uniconv_refresh_token");
+        if (accessToken) {
+          try {
+            const { data: { session: restored } } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || ""
+            });
+            effectiveSession = restored;
+          } catch {
+            localStorage.removeItem("uniconv_access_token");
+            localStorage.removeItem("uniconv_refresh_token");
+            router.push("/login");
+            return;
+          }
+        } else {
+          router.push("/login");
+          return;
+        }
       }
-      setSessionToken(session.access_token);
-      setUserEmail(session.user.email || null);
+
+      setSessionToken(effectiveSession.access_token);
+      setUserEmail(effectiveSession.user.email || null);
 
       const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "4mh24cs167@gmail.com";
       if (session.user.email === adminEmail) {

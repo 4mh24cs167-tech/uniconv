@@ -25,8 +25,13 @@ BREVO_SMTP_PASS = os.getenv("BREVO_SMTP_PASS", "")
 BREVO_FROM_EMAIL = os.getenv("BREVO_FROM_EMAIL", "noreply@uniconv.app")
 BREVO_FROM_NAME = os.getenv("BREVO_FROM_NAME", "UniConv")
 
+# Admin email check
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", os.getenv("BREVO_FROM_EMAIL", "noreply@uniconv.app")).lower()
+
+def _is_admin_email(email: str) -> bool:
+    return email.lower() == ADMIN_EMAIL
+
 OTP_TTL_SECONDS = 600  # 10 minutes
-# In-memory store: { email: { "otp": str, "name": str, "password": str, "created_at": float } }
 _otp_store: dict = {}
 
 
@@ -161,35 +166,21 @@ def verify_otp(email: str, otp: str) -> dict:
             "id": user.id,
             "email": email,
             "name": data.get("name", ""),
+            "is_admin": _is_admin_email(email),
             "created_at": datetime.now(timezone.utc).isoformat(),
         }).execute()
 
-        # Generate session using Supabase Auth
-        session_response = supabase.auth.admin.generate_link({
-            "type": "magiclink",
-            "email": email,
-        })
-
-        # For login, create a proper session
-        login_resp = supabase.auth.sign_in_with_password({
-            "email": email,
-            "password": data["password"],
-        })
-
-        # Clear OTP
+        # Clear OTP first (success path will return before this matters)
         del _otp_store[email]
 
+        # Return user info — tokens will be obtained via login after signup
         return {
             "user": {
                 "id": user.id,
                 "email": user.email,
                 "full_name": data.get("name", ""),
             },
-            "session": {
-                "access_token": login_resp.session.access_token,
-                "refresh_token": login_resp.session.refresh_token,
-                "expires_in": login_resp.session.expires_in,
-            }
+            "session": None  # Frontend will auto-login or show success
         }
 
     except Exception as e:
@@ -264,8 +255,12 @@ def login_with_email(email: str, password: str) -> dict:
                 "id": user.id,
                 "email": user.email,
                 "name": (user.user_metadata or {}).get("full_name", "") or (user.user_metadata or {}).get("name", ""),
+                "is_admin": _is_admin_email(user.email),
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }).execute()
+        elif _is_admin_email(user.email):
+            # Ensure admin flag is set for existing admin email logins
+            supabase.table("users").update({"is_admin": True}).eq("id", user.id).execute()
 
         # Get profile info
         profile = supabase.table("users").select("name").eq("id", user.id).single().execute()

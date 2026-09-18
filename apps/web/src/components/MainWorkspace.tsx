@@ -109,14 +109,35 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
   useEffect(() => {
     const fetchPlan = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
+
+      // Fallback to localStorage tokens if no cookie session
+      let effectiveSession = session;
+      if (!effectiveSession) {
+        const accessToken = localStorage.getItem("uniconv_access_token");
+        const refreshToken = localStorage.getItem("uniconv_refresh_token");
+        if (accessToken) {
+          try {
+            const { data: { session: restored } } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || ""
+            });
+            effectiveSession = restored;
+          } catch {
+            // Tokens invalid, clear them
+            localStorage.removeItem("uniconv_access_token");
+            localStorage.removeItem("uniconv_refresh_token");
+          }
+        }
+      }
+
+      if (effectiveSession) {
         setIsLoggedIn(true);
         const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "4mh24cs167@gmail.com";
-        if (session.user.email === adminEmail) {
+        if (effectiveSession.user.email === adminEmail) {
           setIsPremium(true);
           setUserPlan("premium");
         } else {
-          const { data } = await supabase.from("users").select("plan:plans(name)").eq("id", session.user.id).single();
+          const { data } = await supabase.from("users").select("plan:plans(name)").eq("id", effectiveSession.user.id).single();
           const planData = data?.plan as { name: string } | { name: string }[] | null;
           if (planData) {
             const planName = Array.isArray(planData) ? planData[0]?.name : planData.name;
@@ -280,9 +301,15 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
 
       setProgress(50);
 
+      const supabase = getBrowserSupabaseClient();
+      const { data: { session } } = await supabase.auth.getSession();
+
       const res = await fetch(`${apiUrl}/api/jobs${fileIds.length > 0 ? '?file_id='+fileIds[0] : ''}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {})
+        },
         body: JSON.stringify({
           tool: toolName,
           target_format: finalTargetFormat || null,
@@ -328,7 +355,7 @@ export function MainWorkspace({ initialSlug }: { initialSlug?: string }) {
             const resultFile = Array.isArray(data.result_file) ? data.result_file[0] : data.result_file;
             if (resultFile?.storage_key) {
               const supabase = getBrowserSupabaseClient();
-              const { data: urlData } = supabase.storage.from("results").getPublicUrl(resultFile.storage_key, { download: true });
+              const { data: urlData } = supabase.storage.from("results").getPublicUrl(resultFile.storage_key);
               setResultUrl(urlData.publicUrl);
               setResultFilename(resultFile.storage_key);
             }
