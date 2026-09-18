@@ -107,6 +107,16 @@ export default function RegisterPage() {
   const [countdown, setCountdown] = useState(0);
   const router = useRouter();
 
+  // Clear any stale auth tokens on mount so Supabase doesn't throw 400 errors
+  useEffect(() => {
+    const accessToken = localStorage.getItem("uniconv_access_token");
+    const refreshToken = localStorage.getItem("uniconv_refresh_token");
+    if (accessToken && (!refreshToken || refreshToken.length < 20)) {
+      localStorage.removeItem("uniconv_access_token");
+      localStorage.removeItem("uniconv_refresh_token");
+    }
+  }, []);
+
   // Countdown timer for resend
   useEffect(() => {
     if (countdown <= 0) return;

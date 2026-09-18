@@ -17,6 +17,15 @@ function LoginForm() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
+  // Clear stale tokens that cause 400 refresh errors
+  useEffect(() => {
+    const refreshToken = localStorage.getItem("uniconv_refresh_token");
+    if (!refreshToken || refreshToken.length < 20) {
+      localStorage.removeItem("uniconv_access_token");
+      localStorage.removeItem("uniconv_refresh_token");
+    }
+  }, []);
+
   useEffect(() => {
     const errorParam = searchParams.get("error");
     if (errorParam) setError(decodeURIComponent(errorParam));
